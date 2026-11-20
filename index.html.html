@@ -1,7 +1,9 @@
 <!DOCTYPE html>
 <!-- saved from url=(0062)blob:https://www.kimi.com/ebfb4e3a-dd38-40c8-b00b-c2eeb81e1397 -->
-<!-- PharmD Smart Hub v8 — fixes: overflow body, gender sync, cycle bilingual, PDF onerror, sessionStorage gender, cycle date reset, analyze debounce -->
-<html lang="ar" dir="rtl"><head><meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<!-- PharmD Smart Hub v13 — upgraded: Arabic RTL/English LTR PDF export, unified gender reference ranges, expanded medicationDB, clean UTF-8 -->
+<html lang="ar" dir="rtl"><head>
+    <meta charset="UTF-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
     
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <!-- PWA v10 -->
@@ -345,6 +347,74 @@
         }
 
         .ocr-status.processing { display: block; animation: pulse 1.5s infinite; }
+
+        .ocr-verify-banner {
+            margin-top: 12px;
+            padding: 12px 14px;
+            border-radius: var(--radius-sm);
+            background: rgba(255, 248, 225, 0.96);
+            color: #6c5303;
+            border: 1.5px solid #f39c12;
+            font-size: 0.84rem;
+            line-height: 1.55;
+            text-align: start;
+            display: none;
+        }
+        .ocr-verify-banner.show { display: block; }
+        .ocr-verify-banner.info {
+            background: rgba(232, 244, 253, 0.96);
+            color: #145a9e;
+            border-color: #64b5f6;
+        }
+        .ocr-verify-banner ul {
+            margin: 6px 0 0 0;
+            padding-inline-start: 18px;
+        }
+        .ocr-verify-banner li { margin-bottom: 4px; }
+        .ocr-verify-actions {
+            margin-top: 8px;
+            display: flex;
+            flex-wrap: wrap;
+            gap: 6px;
+        }
+        .ocr-apply-btn {
+            background: #1a6fc4;
+            color: #fff;
+            border: none;
+            border-radius: 6px;
+            padding: 4px 10px;
+            font-size: 0.76rem;
+            font-weight: 700;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .ocr-apply-btn:hover { background: #145a9e; }
+
+        .ocr-verify-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 3px 10px;
+            border-radius: 14px;
+            font-size: 0.72rem;
+            font-weight: 600;
+            margin-top: 4px;
+            margin-inline-end: 6px;
+            background: #fff8e1;
+            color: #856404;
+            border: 1px solid #f39c12;
+            line-height: 1.35;
+        }
+        .ocr-verify-badge.comparator {
+            background: #fdecea;
+            color: #922b21;
+            border-color: #e74c3c;
+        }
+        .ocr-verify-badge.info {
+            background: #e8f4fd;
+            color: #145a9e;
+            border-color: #64b5f6;
+        }
 
         @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.5; } }
 
@@ -857,6 +927,29 @@
         .gender-overlay.hidden {
             display: none;
         }
+
+        /* Dedicated Print Fallback Container (used only when popup print is blocked) */
+        #printReportContainer {
+            display: none;
+        }
+
+        @media print {
+            @page { size: A4 portrait; margin: 12mm; }
+            body.printing-report > *:not(#printReportContainer) {
+                display: none !important;
+            }
+            body.printing-report {
+                background: #ffffff !important;
+                margin: 0 !important;
+                padding: 0 !important;
+            }
+            body.printing-report #printReportContainer {
+                display: block !important;
+                width: 100% !important;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+        }
     </style>
 <!--<base target="_blank">--><base href="." target="_blank">
 </head>
@@ -991,7 +1084,7 @@
                 <button class="btn btn-primary" onclick="guardedAnalyze(analyzeLipids)" data-ar="🔬 تحليل النتائج" data-en="🔬 Analyze Results">🔬 تحليل النتائج</button>
 
                 <div id="lipidResult" class="result-box">
-                    <div class="result-title">📋 نتائج التحليل</div>
+                    <div class="result-title" data-ar="📋 نتائج التحليل" data-en="📋 Analysis Results">📋 نتائج التحليل</div>
                     <div id="lipidResultContent"></div>
                 </div>
             </div>
@@ -1019,7 +1112,7 @@
                 <button class="btn btn-primary" onclick="guardedAnalyze(analyzeDiabetes)" data-ar="🔬 تحليل النتائج" data-en="🔬 Analyze Results">🔬 تحليل النتائج</button>
 
                 <div id="diabetesResult" class="result-box">
-                    <div class="result-title">📋 نتائج التحليل</div>
+                    <div class="result-title" data-ar="📋 نتائج التحليل" data-en="📋 Analysis Results">📋 نتائج التحليل</div>
                     <div id="diabetesResultContent"></div>
                 </div>
             </div>
@@ -1051,7 +1144,7 @@
                 <button class="btn btn-primary" onclick="guardedAnalyze(analyzeAnemia)" data-ar="🔬 تحليل النتائج" data-en="🔬 Analyze Results">🔬 تحليل النتائج</button>
 
                 <div id="anemiaResult" class="result-box">
-                    <div class="result-title">📋 نتائج التحليل</div>
+                    <div class="result-title" data-ar="📋 نتائج التحليل" data-en="📋 Analysis Results">📋 نتائج التحليل</div>
                     <div id="anemiaResultContent"></div>
                 </div>
             </div>
@@ -1069,16 +1162,16 @@
                     <input type="number" id="uricValue" class="form-input" step="0.1" placeholder="مثال: 7.5" oninput="updateBadge(&#39;uricValue&#39;, &#39;uric&#39;)">
                 </div>
                 <div class="form-group">
-                    <label class="form-label">Gender</label>
+                    <label class="form-label" data-ar="الجنس (Gender)" data-en="Gender">الجنس (Gender)</label>
                     <select id="uricGender" class="form-select" onchange="updateBadge(&#39;uricValue&#39;, &#39;uric&#39;)">
-                        <option value="male">Male</option>
-                        <option value="female">Female</option>
+                        <option value="male" data-ar="ذكر / Male" data-en="Male">ذكر / Male</option>
+                        <option value="female" data-ar="أنثى / Female" data-en="Female">أنثى / Female</option>
                     </select>
                 </div>
                 <button class="btn btn-primary" onclick="guardedAnalyze(analyzeUric)" data-ar="🔬 تحليل النتائج" data-en="🔬 Analyze Results">🔬 تحليل النتائج</button>
 
                 <div id="uricResult" class="result-box">
-                    <div class="result-title">📋 نتائج التحليل</div>
+                    <div class="result-title" data-ar="📋 نتائج التحليل" data-en="📋 Analysis Results">📋 نتائج التحليل</div>
                     <div id="uricResultContent"></div>
                 </div>
             </div>
@@ -1102,7 +1195,7 @@
                 <button class="btn btn-primary" onclick="guardedAnalyze(analyzeThyroid)" data-ar="🔬 تحليل النتائج" data-en="🔬 Analyze Results">🔬 تحليل النتائج</button>
 
                 <div id="thyroidResult" class="result-box">
-                    <div class="result-title">📋 نتائج التحليل</div>
+                    <div class="result-title" data-ar="📋 نتائج التحليل" data-en="📋 Analysis Results">📋 نتائج التحليل</div>
                     <div id="thyroidResultContent"></div>
                 </div>
             </div>
@@ -1122,7 +1215,7 @@
                 <button class="btn btn-primary" onclick="guardedAnalyze(analyzeVitaminD)" data-ar="🔬 تحليل النتائج" data-en="🔬 Analyze Results">🔬 تحليل النتائج</button>
 
                 <div id="vitaminResult" class="result-box">
-                    <div class="result-title">📋 نتائج التحليل</div>
+                    <div class="result-title" data-ar="📋 نتائج التحليل" data-en="📋 Analysis Results">📋 نتائج التحليل</div>
                     <div id="vitaminResultContent"></div>
                 </div>
             </div>
@@ -1144,7 +1237,7 @@
                 <button class="btn btn-primary" onclick="guardedAnalyze(calculateCycle)" data-ar="📊 حساب الدورة" data-en="📊 Calculate Cycle">📊 حساب الدورة</button>
 
                 <div id="cycleResult" class="result-box">
-                    <div class="result-title">📋 نتائج الحساب</div>
+                    <div class="result-title" data-ar="📋 نتائج الحساب" data-en="📋 Calculation Results">📋 نتائج الحساب</div>
                     <div class="cycle-result" id="cycleCards"></div>
                     <div class="countdown-box" id="cycleCountdown" style="display:none;">
                         <div class="big-number" id="countdownDays">--</div>
@@ -1184,21 +1277,23 @@
                             <option value="diabetes">سكري / Diabetes</option>
                             <option value="hypertension">ضغط / Hypertension</option>
                             <option value="lipids">دهون / Lipids</option>
+                            <option value="thyroid">الغدة الدرقية / Thyroid</option>
+                            <option value="gout">النقرس واليوريك / Gout &amp; Uric Acid</option>
                             <option value="pain">مسكنات / Pain Relief</option>
                             <option value="antibiotics">مضادات حيوية / Antibiotics</option>
-                            <option value="vitamins">فيتامينات / Vitamins</option>
+                            <option value="vitamins">فيتامينات ومكملات / Vitamins &amp; Supplements</option>
                         </select>
                     </div>
 
                     <div class="form-group" id="medDrugGroup" style="display:none;">
-                        <label class="form-label">اختر الدواء</label>
+                        <label class="form-label" data-ar="اختر الدواء" data-en="Select Medication">اختر الدواء</label>
                         <select id="medDrug" class="form-select" onchange="showDrugInfo()">
                             <option value="">-- اختر الدواء --</option>
                         </select>
                     </div>
 
                     <div id="drugInfoCard" class="drug-info-card">
-                        <h4>📋 معلومات الدواء</h4>
+                        <h4 data-ar="📋 معلومات الدواء" data-en="📋 Medication Information">📋 معلومات الدواء</h4>
                         <div id="drugInfoContent"></div>
                     </div>
                 </div>
@@ -1253,16 +1348,18 @@
         <p>⚠️ إخلاء مسؤولية طبي | Medical Disclaimer</p>
         <p class="disclaimer">هذا التطبيق للأغراض التعليمية فقط. لا يغني عن استشارة الطبيب أو الصيدلي.</p>
         <p class="disclaimer">This app is for educational purposes only. Always consult your physician.</p>
-        <p class="disclaimer" style="margin-top:4px; opacity:0.5;">PharmD Smart Hub © 2026 v9 | Free OCR (Tesseract.js) | Offline Ready</p>
+        <p class="disclaimer" style="margin-top:4px; opacity:0.5;">PharmD Smart Hub © 2026 v13 | Free OCR (Tesseract.js) | Offline Ready</p>
     </footer>
 
     <div class="alert-overlay" id="alertOverlay">
         <div class="alert-box">
             <h3 id="alertTitle">تنبيه</h3>
             <p id="alertMessage">رسالة</p>
-            <button class="btn btn-primary" onclick="closeAlert()" style="width:auto; padding: 10px 30px;">موافق</button>
+            <button class="btn btn-primary" onclick="closeAlert()" style="width:auto; padding: 10px 30px;" data-ar="موافق" data-en="OK">موافق</button>
         </div>
     </div>
+
+    <div id="printReportContainer" aria-hidden="true"></div>
 
     <script>
 
@@ -1368,22 +1465,81 @@
                   sideEffects: "غثيان، دوخة، التهاب وتر (نادر)", sideEffectsEn: "Nausea, dizziness, tendinitis (rare)",
                   notes: "Fluoroquinolone، لا يعطى للأطفال", notesEn: "Fluoroquinolone, avoid in children" }
             ],
+            thyroid: [
+                { name: "Levothyroxine (Euthyrox / Eltroxin)", nameAr: "ليفوثيروكسين (إيوثيروكس)",
+                  dose: "25-150 mcg يومياً (تُضبط تدريجياً حسب الوزن ونتائج TSH)", doseEn: "25-150 mcg once daily (titrated by body weight & TSH)",
+                  timing: "صباحاً على معدة فارغة قبل الإفطار بـ 30-60 دقيقة؛ يُفصل 4 ساعات عن الحديد والكالسيوم ومضادات الحموضة", timingEn: "Morning on an empty stomach, 30-60 min before breakfast; separate by 4h from iron, calcium, and antacids",
+                  sideEffects: "خفقان، تعرق، عصبية، أرق، فقدان وزن، إسهال (عند الجرعة الزائدة)", sideEffectsEn: "Palpitations, sweating, nervousness, insomnia, weight loss, diarrhea (if overdosed)",
+                  notes: "العلاج الأساسي لخمول الغدة الدرقية؛ يُعاد فحص TSH بعد 6-8 أسابيع من بدء العلاج أو تعديل الجرعة", notesEn: "First-line therapy for hypothyroidism; recheck TSH 6-8 weeks after initiation or any dose change" },
+                { name: "Carbimazole (Neomercazole)", nameAr: "كاربيمازول (نيوميركازول)",
+                  dose: "5-40 mg/day (تُقلل تدريجياً للجرعة الداعمة 5-15 mg/day حسب وظائف الغدة)", doseEn: "5-40 mg/day initial, tapered to 5-15 mg/day maintenance based on thyroid panel",
+                  timing: "مع أو بعد الطعام في نفس الوقت يومياً", timingEn: "With or after food at the same time daily",
+                  sideEffects: "طفح جلدي، حكة، ألم مفاصل، نادراً نقص كريات الدم البيضاء (Agranulocytosis) أو التهاب كبد", sideEffectsEn: "Rash, pruritus, arthralgia; rarely agranulocytosis or hepatotoxicity",
+                  notes: "مضاد لفرط نشاط الغدة الدرقية؛ يجب إيقافه ومراجعة الطبيب فوراً عند حدوث حمى أو التهاب حلق شديد أو تقرحات فم", notesEn: "Antithyroid drug for hyperthyroidism; seek urgent CBC evaluation if fever, severe sore throat, or mouth ulcers occur" },
+                { name: "Propylthiouracil (PTU)", nameAr: "بروبيل ثيوراسيل (PTU)",
+                  dose: "50-150 mg كل 8 ساعات (حسب شدة فرط النشاط)", doseEn: "50-150 mg every 8 hours (individualized by severity)",
+                  timing: "مع الطعام لتقليل اضطراب المعدة وبانتظام كل 8 ساعات", timingEn: "With food to minimize GI upset, spaced evenly every 8 hours",
+                  sideEffects: "غثيان، طفح جلدي، ارتفاع إنزيمات الكبد، نادراً نقص كريات الدم البيضاء", sideEffectsEn: "Nausea, skin rash, hepatotoxicity; rarely agranulocytosis",
+                  notes: "يُفضل في الثلث الأول من الحمل لفرط نشاط الغدة الدرقية؛ يتطلب مراقبة وظائف الكبد بانتظام", notesEn: "Preferred antithyroid agent in the 1st trimester of pregnancy; monitor liver function tests closely" }
+            ],
+            gout: [
+                { name: "Allopurinol (Zyloric / No-Uric)", nameAr: "ألوبيورينول (زيلوريك)",
+                  dose: "البداية 100 mg يومياً وتُرفع تدريجياً حتى 300 mg/day (وتُعدل في القصور الكلوي)", doseEn: "Start 100 mg/day, titrate gradually up to 300 mg/day (renal adjustment required)",
+                  timing: "بعد الوجبة الرئيسية مع شرب 2-3 لتر ماء يومياً", timingEn: "After meals with plenty of fluids (2-3 L/day)",
+                  sideEffects: "طفح جلدي، غثيان، قد يثير نوبة نقرس مبدئية عند البدء، نادراً تفاعل حساسية جلدي شديد", sideEffectsEn: "Skin rash, nausea, initial gout flare on initiation; rarely severe cutaneous hypersensitivity",
+                  notes: "مثبط Xanthine Oxidase؛ الخط الأول لخفض اليوريك أسيد. يُوقف فوراً عند ظهور طفح جلدي، ولا يُوقف أثناء النوبة الحادة إذا كان المريض منتظماً عليه", notesEn: "Xanthine oxidase inhibitor; first-line urate-lowering therapy. Stop immediately if rash appears; do not interrupt during acute flare if already established" },
+                { name: "Febuxostat (Adenuric / Feburic)", nameAr: "فيبوكسوستات (أدينوريك / فيبيوريك)",
+                  dose: "40-80 mg مرة واحدة يومياً", doseEn: "40-80 mg once daily",
+                  timing: "مع أو بدون طعام في نفس الوقت يومياً", timingEn: "With or without food, same time daily",
+                  sideEffects: "ارتفاع إنزيمات الكبد، غثيان، ألم مفاصل، نوبات نقرس مبدئية", sideEffectsEn: "Elevated liver enzymes, nausea, arthralgia, initial gout flares",
+                  notes: "بديل فعال لمن لا يتحمل Allopurinol أو في القصور الكلوي الخفيف/المتوسط؛ يُستخدم بحذر في مرضى القلب والأوعية الدموية", notesEn: "Effective alternative for Allopurinol intolerance or mild-moderate renal impairment; use cautiously in patients with cardiovascular disease" },
+                { name: "Colchicine", nameAr: "كولشيسين",
+                  dose: "للنوبة الحادة: 1.2 mg ثم 0.6 mg بعد ساعة؛ للوقاية: 0.5-0.6 mg مرة أو مرتين يومياً", doseEn: "Acute flare: 1.2 mg then 0.6 mg 1h later; Prophylaxis: 0.5-0.6 mg once or twice daily",
+                  timing: "مع أو بدون طعام (مع تجنب عصير الجريب فروت)", timingEn: "With or without food (avoid grapefruit juice)",
+                  sideEffects: "إسهال، مغص بطني، غثيان، قيء (علامات مبكرة لزيادة الجرعة)", sideEffectsEn: "Diarrhea, abdominal cramping, nausea, vomiting (early signs of overdose/toxicity)",
+                  notes: "مضاد التهاب مخصص لنوبات النقرس الحادة وللوقاية عند بدء Allopurinol أو Febuxostat؛ راجع التداخلات مع Statins و Clarithromycin", notesEn: "Treats acute gout flares & prevents flares when starting urate-lowering therapy; check CYP3A4/P-gp & statin interactions" }
+            ],
             vitamins: [
                 { name: "Vitamin D3", nameAr: "فيتامين د3",
-                  dose: "1000-5000 IU/day", doseEn: "1000-5000 IU/day",
-                  timing: "مع وجبة تحتوي على دهون", timingEn: "With a fat-containing meal",
-                  sideEffects: "نادراً سمية (مع جرعات عالية جداً)", sideEffectsEn: "Rarely toxic (only at very high doses)",
-                  notes: "مهم للعظام والمناعة، 80% من الناس يعانون نقص", notesEn: "Essential for bones and immunity; 80% of people are deficient" },
-                { name: "Vitamin B12", nameAr: "فيتامين ب12",
-                  dose: "1000 mcg/day", doseEn: "1000 mcg/day",
-                  timing: "في أي وقت", timingEn: "Any time of day",
-                  sideEffects: "نادراً طفح جلدي، حكة", sideEffectsEn: "Rarely rash or itching",
-                  notes: "مهم للأعصاب وخلايا الدم، يحتاجه النباتيون", notesEn: "Essential for nerves and blood cells, needed by vegans" },
-                { name: "Iron (Ferose)", nameAr: "حديد (فيروز)",
-                  dose: "65 mg elemental iron/day", doseEn: "65 mg elemental iron/day",
-                  timing: "على معدة فارغة مع فيتامين C", timingEn: "On empty stomach with Vitamin C",
-                  sideEffects: "إمساك، غثيان، براز أسود", sideEffectsEn: "Constipation, nausea, black stools",
-                  notes: "لا يعطى مع Calcium أو Antacids", notesEn: "Do not take with Calcium or Antacids" }
+                  dose: "1000-5000 IU/day (أو 50,000 IU أسبوعياً لحالات النقص الحاد لمدة 8 أسابيع)", doseEn: "1000-5000 IU/day (or 50,000 IU/week for 8 weeks in severe deficiency)",
+                  timing: "مع وجبة رئيسية تحتوي على دهون صحية", timingEn: "With a main fat-containing meal for optimal absorption",
+                  sideEffects: "نادراً سمية أو ارتفاع كالسيوم الدم (مع الجرعات العالية جداً لفترات طويلة)", sideEffectsEn: "Rarely toxicity or hypercalcemia (only with prolonged excessive dosing)",
+                  notes: "أساسي لصحة العظام والمناعة؛ يُعاد قياس 25-OH Vitamin D بعد 3 أشهر من الكورس العلاجي", notesEn: "Essential for bone health and immunity; recheck 25-OH Vitamin D after 3 months of therapy" },
+                { name: "Vitamin B12 (Cyanocobalamin / Methylcobalamin)", nameAr: "فيتامين ب12",
+                  dose: "1000 mcg يومياً فموياً (أو حقن عضلي حسب شدة النقص)", doseEn: "1000 mcg/day oral (or IM injections for severe deficiency/malabsorption)",
+                  timing: "صباحاً مع أو بدون طعام", timingEn: "Morning, with or without food",
+                  sideEffects: "آمن جداً؛ نادراً طفح جلدي خفيف أو حكة", sideEffectsEn: "Very well tolerated; rarely mild rash or itching",
+                  notes: "ضروري لصحة الأعصاب وتكوين خلايا الدم؛ يُنصح بمراقبته لمرضى السكري على Metformin والنباتيين ومستخدمي PPI لفترات طويلة", notesEn: "Essential for nerve function and RBC synthesis; monitor in long-term Metformin/PPI users and vegans" },
+                { name: "Iron (Ferose - Iron Polymaltose)", nameAr: "حديد (فيروز)",
+                  dose: "100 mg حديد عنصري مرة يومياً (أو 65-100 mg حسب شدة الأنيميا)", doseEn: "65-100 mg elemental iron once daily (depending on anemia severity)",
+                  timing: "مع أو بعد الطعام (يتميز بتحمل معدي أفضل من أملاح الحديد التقليدية)", timingEn: "With or after meals (better GI tolerability than traditional iron salts)",
+                  sideEffects: "إمساك خفيف، غثيان، تغير لون البراز للأسود (طبيعي وغير مقلق)", sideEffectsEn: "Mild constipation, nausea, dark/black stools (harmless)",
+                  notes: "يُفصل عن الكالسيوم ومضادات الحموضة و Levothyroxine بـ 2-4 ساعات؛ يستمر العلاج 3 أشهر بعد تحسن Hb لملء مخزون Ferritin", notesEn: "Separate by 2-4h from calcium, antacids, and Levothyroxine; continue 3 months after Hb normalizes to replete ferritin" },
+                { name: "Ferrous Sulfate / Iron Bisglycinate", nameAr: "كبريتات الحديد / بيسجليسينات الحديد",
+                  dose: "60-65 mg حديد عنصري يومياً أو يوماً بعد يوم (Alternate-day dosing)", doseEn: "60-65 mg elemental iron daily or every other day (alternate-day dosing)",
+                  timing: "على معدة فارغة قبل الأكل بساعة مع فيتامين C؛ يُفصل ساعتين عن الشاي والقهوة والألبان و4 ساعات عن دواء الغدة", timingEn: "On an empty stomach 1h before meals with Vitamin C; separate 2h from tea/coffee/dairy & 4h from Levothyroxine",
+                  sideEffects: "إمساك، ألم معدة، غثيان، براز داكن اللون", sideEffectsEn: "Constipation, GI discomfort, nausea, dark stools",
+                  notes: "الجرعة يوماً بعد يوم ترفع الامتصاص وتقلل اضطرابات المعدة؛ Iron Bisglycinate خيار لطيف جداً على المعدة", notesEn: "Alternate-day dosing enhances fractional absorption & reduces GI side effects; Iron Bisglycinate is gentler on the stomach" },
+                { name: "Folic Acid (Vitamin B9)", nameAr: "حمض الفوليك (فيتامين ب9)",
+                  dose: "400-800 mcg/day (للوقاية والحمل)، أو 1-5 mg/day لعلاج النقص", doseEn: "400-800 mcg/day (prevention/pregnancy), or 1-5 mg/day for deficiency",
+                  timing: "صباحاً مع أو بدون طعام", timingEn: "Morning, with or without food",
+                  sideEffects: "آمن جداً؛ نادراً انتفاخ أو غثيان خفيف", sideEffectsEn: "Well tolerated; rarely mild bloating or nausea",
+                  notes: "أساسي لعلاج Macrocytic Anemia وللوقاية من تشوهات الأنبوب العصبي؛ يجب التأكد من مستوى B12 قبل الجرعات العالية", notesEn: "Key for macrocytic anemia & neural tube defect prevention; rule out Vitamin B12 deficiency before high-dose therapy" },
+                { name: "Omega-3 Fatty Acids (EPA/DHA)", nameAr: "أوميغا 3 (زيت السمك)",
+                  dose: "1000-2000 mg/day للصحة العامة، وحتى 4000 mg/day لخفض الدهون الثلاثية بإشراف طبي", doseEn: "1000-2000 mg/day general health; up to 4000 mg/day for hypertriglyceridemia under medical supervision",
+                  timing: "مع وجبة رئيسية تحتوي على دهون لتقليل التجشؤ بطعم السمك", timingEn: "With a main fat-containing meal to maximize absorption and reduce fishy aftertaste",
+                  sideEffects: "تجشؤ بطعم سمكي، اضطراب معدة خفيف، زيادة طفيفة في السيولة مع الجرعات العالية", sideEffectsEn: "Fishy aftertaste, mild GI upset, mild bleeding risk at high doses",
+                  notes: "يساعد في خفض Triglycerides ودعم صحة القلب؛ يُؤخذ بحذر ومراقبة عند الاستخدام مع مسيلات الدم مثل Warfarin أو Aspirin", notesEn: "Helps lower triglycerides and supports cardiovascular health; monitor when combined with anticoagulants or antiplatelets" },
+                { name: "Calcium (Carbonate / Citrate) + Vitamin D", nameAr: "كالسيوم مع فيتامين د",
+                  dose: "500-600 mg كالسيوم عنصري مرة أو مرتين يومياً (بحد أقصى 500 mg للجرعة الواحدة)", doseEn: "500-600 mg elemental calcium once or twice daily (max 500 mg per single dose for absorption)",
+                  timing: "Calcium Carbonate مع الطعام؛ Calcium Citrate مع أو بدون طعام؛ يُفصل 2-4 ساعات عن الحديد و Levothyroxine", timingEn: "Calcium Carbonate with food; Calcium Citrate with or without food; separate 2-4h from iron and Levothyroxine",
+                  sideEffects: "إمساك، انتفاخ، غازات، خطر حصوات الكلى مع الإفراط", sideEffectsEn: "Constipation, bloating, gas; excess intake may increase kidney stone risk",
+                  notes: "أساسي لصحة العظام والوقاية من الهشاشة؛ يقلل امتصاص الحديد ومضادات الفلوروكينولون (Ciprofloxacin) إذا أُخذ معها", notesEn: "Essential for bone density & osteoporosis prevention; impairs absorption of iron and fluoroquinolones if co-administered" },
+                { name: "Magnesium (Glycinate / Citrate)", nameAr: "مغنيسيوم",
+                  dose: "200-400 mg/day من المغنيسيوم العنصري", doseEn: "200-400 mg/day elemental magnesium",
+                  timing: "مساءً مع الطعام أو قبل النوم (Glycinate للعضلات والنوم، Citrate للإمساك)", timingEn: "Evening with food or at bedtime (Glycinate for muscles/sleep, Citrate for constipation)",
+                  sideEffects: "إسهال لين أو تقلصات بطن (أكثر مع Oxide/Citrate)", sideEffectsEn: "Loose stools or abdominal cramps (more common with Oxide/Citrate)",
+                  notes: "يدعم الأعصاب والعضلات ويساعد في تنشيط فيتامين د؛ يُستخدم بحذر في مرضى القصور الكلوي ويُفصل عن المضادات الحيوية", notesEn: "Supports nerve/muscle function and Vitamin D activation; use cautiously in renal impairment and separate from certain antibiotics" }
             ]
         };
 
@@ -1428,95 +1584,156 @@
         }
 
 
+        // ===== UNIFIED GENDER-SPECIFIC REFERENCE RANGES =====
+        function getEffectiveGender(preferUricSelect) {
+            if (preferUricSelect) {
+                const uricSel = document.getElementById('uricGender');
+                if (uricSel && uricSel.value) return uricSel.value;
+            }
+            if (userGender) return userGender;
+            const uricSel = document.getElementById('uricGender');
+            return (uricSel && uricSel.value) ? uricSel.value : 'male';
+        }
+
+        function getGenderRanges(gender) {
+            const isMale = (gender || getEffectiveGender(false)) === 'male';
+            return {
+                isMale,
+                hb:       { danger: isMale ? 13.5 : 12.0, warning: isMale ? 14.0 : 12.5, min: isMale ? 10 : 9,  max: isMale ? 17.5 : 15.5, rangeText: isMale ? '13.5–17.5' : '12.0–15.5' },
+                hct:      { danger: isMale ? 39   : 36,   warning: isMale ? 42   : 38,   min: isMale ? 30 : 28, max: isMale ? 54   : 47,   rangeText: isMale ? '39–54%'    : '36–47%' },
+                ferritin: { danger: isMale ? 20   : 15,   warning: isMale ? 40   : 30,   min: 0,                max: isMale ? 300  : 200,  rangeText: isMale ? '20–300'    : '15–200' },
+                uric:     { min:    isMale ? 3.5  : 2.5,  max:     isMale ? 7.0  : 6.0,  rangeText: isMale ? '3.5–7.0' : '2.5–6.0' }
+            };
+        }
+
+        const INPUT_BADGE_MAP = {
+            lipidTotal: 'totalCholesterol',
+            lipidLDL: 'ldl',
+            lipidHDL: 'hdl',
+            lipidTG: 'tg',
+            diabetesFBS: 'fbs',
+            diabetesHbA1c: 'hba1c',
+            diabetesRBS: 'rbs',
+            anemiaHb: 'hb',
+            anemiaHct: 'hct',
+            anemiaMCV: 'mcv',
+            anemiaFerritin: 'ferritin',
+            uricValue: 'uric',
+            thyroidTSH: 'tsh',
+            thyroidT4: 'ft4',
+            vitaminD: 'vitaminD'
+        };
+
         // ===== STATUS BADGE GENERATOR =====
         function getStatusBadge(value, type) {
             if (!value || isNaN(value)) return '';
 
+            const isEn = typeof currentLang !== 'undefined' && currentLang === 'en';
+            const lbl = (ar, en) => isEn ? en : ar;
+
             let status = 'normal';
-            let text = 'طبيعي';
+            let text = lbl('طبيعي', 'Normal');
 
             switch(type) {
                 // LIPIDS
                 case 'totalCholesterol':
-                    if (value >= 240) { status = 'danger'; text = 'مرتفع جداً'; }
-                    else if (value >= 200) { status = 'warning'; text = 'حدودي'; }
+                    if (value >= 240) { status = 'danger'; text = lbl('مرتفع جداً', 'Very High'); }
+                    else if (value >= 200) { status = 'warning'; text = lbl('حدودي', 'Borderline'); }
                     break;
                 case 'ldl':
-                    if (value >= 190) { status = 'danger'; text = 'مرتفع جداً'; }
-                    else if (value >= 160) { status = 'danger'; text = 'مرتفع'; }
-                    else if (value >= 130) { status = 'warning'; text = 'حدودي'; }
+                    if (value >= 190) { status = 'danger'; text = lbl('مرتفع جداً', 'Very High'); }
+                    else if (value >= 160) { status = 'danger'; text = lbl('مرتفع', 'High'); }
+                    else if (value >= 130) { status = 'warning'; text = lbl('حدودي', 'Borderline'); }
                     break;
                 case 'hdl':
-                    if (value < 40) { status = 'danger'; text = 'منخفض'; }
-                    else if (value < 60) { status = 'warning'; text = 'مقبول'; }
+                    if (value < 40) { status = 'danger'; text = lbl('منخفض', 'Low'); }
+                    else if (value < 60) { status = 'warning'; text = lbl('مقبول', 'Acceptable'); }
                     break;
                 case 'tg':
-                    if (value >= 500) { status = 'danger'; text = 'مرتفع جداً'; }
-                    else if (value >= 200) { status = 'warning'; text = 'مرتفع'; }
-                    else if (value >= 150) { status = 'warning'; text = 'حدودي'; }
+                    if (value >= 500) { status = 'danger'; text = lbl('مرتفع جداً', 'Very High'); }
+                    else if (value >= 200) { status = 'warning'; text = lbl('مرتفع', 'High'); }
+                    else if (value >= 150) { status = 'warning'; text = lbl('حدودي', 'Borderline'); }
                     break;
 
                 // DIABETES
                 case 'fbs':
-                    if (value >= 126) { status = 'danger'; text = 'سكري'; }
-                    else if (value >= 100) { status = 'warning'; text = 'ما قبل السكري'; }
+                    if (value >= 126) { status = 'danger'; text = lbl('سكري', 'Diabetes'); }
+                    else if (value >= 100) { status = 'warning'; text = lbl('ما قبل السكري', 'Pre-diabetes'); }
                     break;
                 case 'hba1c':
-                    if (value >= 6.5) { status = 'danger'; text = 'سكري'; }
-                    else if (value >= 5.7) { status = 'warning'; text = 'ما قبل السكري'; }
+                    if (value >= 6.5) { status = 'danger'; text = lbl('سكري', 'Diabetes'); }
+                    else if (value >= 5.7) { status = 'warning'; text = lbl('ما قبل السكري', 'Pre-diabetes'); }
                     break;
                 case 'rbs':
-                    if (value >= 200) { status = 'danger'; text = 'مرتفع جداً'; }
-                    else if (value >= 140) { status = 'warning'; text = 'مرتفع'; }
+                    if (value >= 200) { status = 'danger'; text = lbl('مرتفع جداً', 'Very High'); }
+                    else if (value >= 140) { status = 'warning'; text = lbl('مرتفع', 'High'); }
                     break;
 
-                // ANEMIA
-                case 'hb':
-                    if (value < 12) { status = 'danger'; text = 'منخفض'; }
-                    else if (value < 13.5) { status = 'warning'; text = 'حدودي'; }
+                // ANEMIA (unified gender-specific thresholds matching analyzeAnemia)
+                case 'hb': {
+                    const r = getGenderRanges(getEffectiveGender(false)).hb;
+                    if (value < r.danger) { status = 'danger'; text = lbl('منخفض — أنيميا', 'Low — Anemia'); }
+                    else if (value < r.warning) { status = 'warning'; text = lbl('حدودي منخفض', 'Borderline Low'); }
                     break;
-                case 'hct':
-                    if (value < 36) { status = 'danger'; text = 'منخفض'; }
+                }
+                case 'hct': {
+                    const r = getGenderRanges(getEffectiveGender(false)).hct;
+                    if (value < r.danger) { status = 'danger'; text = lbl('منخفض', 'Low'); }
+                    else if (value < r.warning) { status = 'warning'; text = lbl('حدودي منخفض', 'Borderline Low'); }
                     break;
+                }
                 case 'mcv':
                     if (value < 80) { status = 'danger'; text = 'Microcytic'; }
                     else if (value > 100) { status = 'warning'; text = 'Macrocytic'; }
                     break;
-                case 'ferritin':
-                    if (value < 15) { status = 'danger'; text = 'نقص شديد'; }
-                    else if (value < 30) { status = 'warning'; text = 'منخفض'; }
+                case 'ferritin': {
+                    const r = getGenderRanges(getEffectiveGender(false)).ferritin;
+                    if (value < r.danger) { status = 'danger'; text = lbl('نقص حديد شديد', 'Severe Iron Deficiency'); }
+                    else if (value < r.warning) { status = 'warning'; text = lbl('منخفض', 'Low'); }
                     break;
+                }
 
-                // URIC ACID
-                case 'uric':
-                    // Get gender from the select element
-                    const gender = document.getElementById('uricGender').value;
-                    const normalMax = gender === 'male' ? 7.0 : 6.0;
-                    if (value > normalMax) { status = 'danger'; text = 'مرتفع'; }
+                // URIC ACID (unified gender-specific thresholds matching analyzeUric)
+                case 'uric': {
+                    const r = getGenderRanges(getEffectiveGender(true)).uric;
+                    if (value > r.max) { status = 'danger'; text = lbl('مرتفع', 'High'); }
+                    else if (value < r.min) { status = 'warning'; text = lbl('منخفض', 'Low'); }
                     break;
+                }
 
                 // THYROID
                 case 'tsh':
-                    if (value > 4.5) { status = 'danger'; text = 'خمول'; }
-                    else if (value < 0.4) { status = 'warning'; text = 'نشاط'; }
+                    if (value > 4.5) { status = 'danger'; text = lbl('خمول', 'Hypothyroid'); }
+                    else if (value < 0.4) { status = 'warning'; text = lbl('نشاط', 'Hyperthyroid'); }
                     break;
                 case 'ft4':
-                    if (value < 0.8) { status = 'danger'; text = 'منخفض'; }
-                    else if (value > 1.8) { status = 'warning'; text = 'مرتفع'; }
+                    if (value < 0.8) { status = 'danger'; text = lbl('منخفض', 'Low'); }
+                    else if (value > 1.8) { status = 'warning'; text = lbl('مرتفع', 'High'); }
                     break;
 
                 // VITAMIN D
                 case 'vitaminD':
-                    if (value < 20) { status = 'danger'; text = 'نقص حاد'; }
-                    else if (value < 30) { status = 'warning'; text = 'غير كافٍ'; }
+                    if (value < 20) { status = 'danger'; text = lbl('نقص حاد', 'Severe Deficiency'); }
+                    else if (value < 30) { status = 'warning'; text = lbl('غير كافٍ', 'Insufficient'); }
                     break;
             }
 
             return `<span class="status-badge ${status}">${text}</span>`;
         }
 
+        function refreshAllBadges() {
+            Object.entries(INPUT_BADGE_MAP).forEach(([inputId, badgeType]) => {
+                const el = document.getElementById(inputId);
+                if (el && (el.value !== '' || (typeof ocrFieldMeta !== 'undefined' && ocrFieldMeta[inputId]))) {
+                    updateBadge(inputId, badgeType);
+                }
+            });
+            if (typeof refreshAllOcrNotices === 'function') refreshAllOcrNotices();
+        }
+
         function updateBadge(inputId, badgeType) {
             const input = document.getElementById(inputId);
+            if (!input) return;
             const value = parseFloat(input.value);
 
             // Find or create badge container
@@ -1530,11 +1747,14 @@
                 container.appendChild(badgeContainer);
             }
 
+            let html = '';
             if (value && !isNaN(value)) {
-                badgeContainer.innerHTML = getStatusBadge(value, badgeType);
-            } else {
-                badgeContainer.innerHTML = '';
+                html += getStatusBadge(value, badgeType);
             }
+            if (typeof buildFieldOcrNoticeHtml === 'function') {
+                html += buildFieldOcrNoticeHtml(inputId);
+            }
+            badgeContainer.innerHTML = html;
         }
 
         // ===== GENDER LOGIC (isolated namespace) =====
@@ -1573,6 +1793,8 @@
                     // Fix: sync uricGender select with chosen gender
                     const uricSel = document.getElementById('uricGender');
                     if (uricSel) uricSel.value = gender;
+                    // Refresh any active lab badges so gender-specific thresholds update immediately
+                    if (typeof refreshAllBadges === 'function') refreshAllBadges();
                     // Fix: persist for session so resetApp doesn't re-prompt unnecessarily
                     sessionStorage.setItem('pharmGender', gender);
                     document.getElementById('genderModal').classList.add('hidden');
@@ -1620,6 +1842,7 @@
                         <input type="file" id="${module}OcrCamera" accept="image/*" capture="environment" style="position:absolute;opacity:0;width:1px;height:1px;overflow:hidden;" onchange="handleOCR(this, '${module}')">
                         <img id="${module}OcrPreview" class="ocr-preview" alt="Preview">
                         <div id="${module}OcrStatus" class="ocr-status"><span data-ar="جاري المعالجة..." data-en="Processing...">جاري المعالجة...</span></div>
+                        <div id="${module}OcrVerify" class="ocr-verify-banner" role="status" aria-live="polite"></div>
                     </div>
                 </div>`;
             // re-apply language if already set
@@ -1751,43 +1974,576 @@
             vitaminD:      [1,    300]
         };
 
-        function safeSetOcrValue(fieldId, rawValue) {
-            const num = parseFloat(rawValue);
-            const range = OCR_RANGES[fieldId];
-            if (!range || isNaN(num)) return false;
-            if (num < range[0] || num > range[1]) {
-                const el = document.getElementById(fieldId);
-                if (el) {
-                    el.value = '';
-                    el.style.border = '2px solid #e74c3c';
-                    el.placeholder = `⚠️ قيمة غير منطقية (${rawValue}) - أدخل يدوياً`;
-                    setTimeout(() => { el.style.border = ''; el.placeholder = el.getAttribute('placeholder') || ''; }, 8000);
-                }
-                return false;
-            }
-            const el = document.getElementById(fieldId);
-            if (el) { el.value = num; el.style.border = ''; }
-            return true;
+        // ===== OCR NORMALIZATION, UNIT MATCHING & VERIFICATION LAYER =====
+        // Stores per-field OCR metadata (comparator, unit, confidence) and per-module banners
+        const ocrFieldMeta = {};
+        const ocrModuleSummary = {};
+        let _isSettingOcrValue = false;
+
+        // Expected canonical units & known alternative units for each lab field
+        const OCR_FIELD_UNITS = {
+            lipidTotal:     { expected: ['mg/dL'],           alt: ['mmol/L'],             uniqueInModule: false },
+            lipidLDL:       { expected: ['mg/dL'],           alt: ['mmol/L'],             uniqueInModule: false },
+            lipidHDL:       { expected: ['mg/dL'],           alt: ['mmol/L'],             uniqueInModule: false },
+            lipidTG:        { expected: ['mg/dL'],           alt: ['mmol/L'],             uniqueInModule: false },
+            diabetesFBS:    { expected: ['mg/dL'],           alt: ['mmol/L'],             uniqueInModule: false },
+            diabetesHbA1c:  { expected: ['%'],               alt: ['mmol/mol'],           uniqueInModule: true  },
+            diabetesRBS:    { expected: ['mg/dL'],           alt: ['mmol/L'],             uniqueInModule: false },
+            anemiaHb:       { expected: ['g/dL'],            alt: ['g/L', 'mmol/L'],      uniqueInModule: true  },
+            anemiaHct:      { expected: ['%'],               alt: ['L/L'],                uniqueInModule: true  },
+            anemiaMCV:      { expected: ['fL'],              alt: [],                     uniqueInModule: true  },
+            anemiaFerritin: { expected: ['ng/mL', 'µg/L'],   alt: ['pmol/L', 'µg/dL'],    uniqueInModule: true  },
+            uricValue:      { expected: ['mg/dL'],           alt: ['µmol/L', 'mmol/L'],   uniqueInModule: true  },
+            thyroidTSH:     { expected: ['mIU/L', 'µIU/mL'], alt: [],                     uniqueInModule: true  },
+            thyroidT4:      { expected: ['ng/dL'],           alt: ['pmol/L', 'µg/dL'],    uniqueInModule: true  },
+            vitaminD:       { expected: ['ng/mL'],           alt: ['nmol/L'],             uniqueInModule: true  }
+        };
+
+        const OCR_FIELD_LABELS = {
+            lipidTotal:     { ar: 'الكوليسترول الكلي',   en: 'Total Cholesterol' },
+            lipidLDL:       { ar: 'LDL',                 en: 'LDL' },
+            lipidHDL:       { ar: 'HDL',                 en: 'HDL' },
+            lipidTG:        { ar: 'الدهون الثلاثية',     en: 'Triglycerides' },
+            diabetesFBS:    { ar: 'السكر الصائم',        en: 'Fasting Blood Sugar' },
+            diabetesHbA1c:  { ar: 'السكر التراكمي',      en: 'HbA1c' },
+            diabetesRBS:    { ar: 'السكر العشوائي',      en: 'Random Blood Sugar' },
+            anemiaHb:       { ar: 'الهيموجلوبين',        en: 'Hemoglobin' },
+            anemiaHct:      { ar: 'الهيماتوكريت',        en: 'Hematocrit' },
+            anemiaMCV:      { ar: 'MCV',                 en: 'MCV' },
+            anemiaFerritin: { ar: 'الفيريتين',           en: 'Ferritin' },
+            uricValue:      { ar: 'اليوريك أسيد',        en: 'Uric Acid' },
+            thyroidTSH:     { ar: 'TSH',                 en: 'TSH' },
+            thyroidT4:      { ar: 'Free T4',             en: 'Free T4' },
+            vitaminD:       { ar: 'فيتامين د',           en: 'Vitamin D' }
+        };
+
+        const OCR_FIELD_TO_MODULE = {
+            lipidTotal: 'lipid', lipidLDL: 'lipid', lipidHDL: 'lipid', lipidTG: 'lipid',
+            diabetesFBS: 'diabetes', diabetesHbA1c: 'diabetes', diabetesRBS: 'diabetes',
+            anemiaHb: 'anemia', anemiaHct: 'anemia', anemiaMCV: 'anemia', anemiaFerritin: 'anemia',
+            uricValue: 'uric',
+            thyroidTSH: 'thyroid', thyroidT4: 'thyroid',
+            vitaminD: 'vitamin'
+        };
+
+        // 1. Convert Eastern Arabic-Indic (٠-٩), Persian (۰-۹), decimal/thousand marks & comparator symbols
+        function normalizeOcrDigits(rawText) {
+            if (rawText == null) return '';
+            return String(rawText)
+                .replace(/[\u0660-\u0669]/g, ch => String(ch.charCodeAt(0) - 0x0660))
+                .replace(/[\u06F0-\u06F9]/g, ch => String(ch.charCodeAt(0) - 0x06F0))
+                .replace(/\u066B/g, '.')   // Arabic decimal separator ٫
+                .replace(/\u066C/g, ',')   // Arabic thousands separator ٬
+                .replace(/\u2264/g, '<=')  // ≤
+                .replace(/\u2265/g, '>=')  // ≥
+                .replace(/\uFF1C/g, '<')   // ＜
+                .replace(/\uFF1E/g, '>')   // ＞
+                .replace(/[\u2013\u2014\u2212]/g, '-');
         }
 
-        // Parse raw Tesseract text → extract numbers next to known keywords
-        function parseLabText(rawText, moduleKeywords) {
-            const lines = rawText.toLowerCase().split(/\n/);
-            const results = {};
+        // 2. Normalize common OCR unit variations into canonical clinical unit labels
+        function normalizeOcrUnits(text) {
+            if (!text) return '';
+            return String(text)
+                .replace(/\u03BC/g, 'µ') // Greek mu -> micro sign
+                .replace(/(^|[\s\d(\[:;,])(?:u|µ|mc)\s*iu\s*[\/\\]\s*m\s*l(?=$|[\s)\]:;,*#!])/gi, '$1µIU/mL')
+                .replace(/(^|[\s\d(\[:;,])m\s*iu\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1mIU/L')
+                .replace(/(^|[\s\d(\[:;,])(?:u|µ|mc)\s*g\s*[\/\\]\s*d\s*l(?=$|[\s)\]:;,*#!])/gi, '$1µg/dL')
+                .replace(/(^|[\s\d(\[:;,])(?:u|µ|mc)\s*g\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1µg/L')
+                .replace(/(^|[\s\d(\[:;,])(?:u|µ)\s*mol\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1µmol/L')
+                .replace(/(^|[\s\d(\[:;,])m\s*mol\s*[\/\\]\s*mol(?=$|[\s)\]:;,*#!])/gi, '$1mmol/mol')
+                .replace(/(^|[\s\d(\[:;,])m\s*mol\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1mmol/L')
+                .replace(/(^|[\s\d(\[:;,])n\s*mol\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1nmol/L')
+                .replace(/(^|[\s\d(\[:;,])p\s*mol\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1pmol/L')
+                .replace(/(^|[\s\d(\[:;,])m\s*g\s*[\/\\]\s*d\s*l(?=$|[\s)\]:;,*#!])/gi, '$1mg/dL')
+                .replace(/(^|[\s\d(\[:;,])m\s*g\s*%(?=$|[\s)\]:;,*#!])/gi, '$1mg/dL')
+                .replace(/(^|[\s\d(\[:;,])n\s*g\s*[\/\\]\s*m\s*l(?=$|[\s)\]:;,*#!])/gi, '$1ng/mL')
+                .replace(/(^|[\s\d(\[:;,])n\s*g\s*[\/\\]\s*d\s*l(?=$|[\s)\]:;,*#!])/gi, '$1ng/dL')
+                .replace(/(^|[\s\d(\[:;,])g\s*m?\s*[\/\\]\s*d\s*l(?=$|[\s)\]:;,*#!])/gi, '$1g/dL')
+                .replace(/(^|[\s\d(\[:;,])g\s*m?\s*[\/\\]\s*l(?=$|[\s)\]:;,*#!])/gi, '$1g/L')
+                .replace(/(^|[\s\d(\[:;,])(?:f\s*l|µm3|um3)(?=$|[\s)\]:;,*#!])/gi, '$1fL')
+                .replace(/(^|[\s\d(\[:;,])(?:percent|pct)(?=$|[\s)\]:;,*#!])/gi, '$1%');
+        }
 
-            for (const { keys, field } of moduleKeywords) {
-                for (const line of lines) {
-                    const matched = keys.some(k => line.includes(k));
-                    if (!matched) continue;
-                    // Extract first decimal/integer number from the line
-                    const numMatch = line.match(/(\d{1,4}(?:[.,]\d{1,3})?)/);
-                    if (numMatch) {
-                        const num = parseFloat(numMatch[1].replace(',', '.'));
-                        if (!isNaN(num)) { results[field] = num; break; }
+        function detectOcrUnit(normalizedLine) {
+            if (!normalizedLine) return null;
+            const patterns = [
+                { unit: 'µIU/mL',   re: /(?:^|[\s\d(\[:;,])µIU\/mL(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'mIU/L',    re: /(?:^|[\s\d(\[:;,])mIU\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'µg/dL',    re: /(?:^|[\s\d(\[:;,])µg\/dL(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'µg/L',     re: /(?:^|[\s\d(\[:;,])µg\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'µmol/L',   re: /(?:^|[\s\d(\[:;,])µmol\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'mmol/mol', re: /(?:^|[\s\d(\[:;,])mmol\/mol(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'mmol/L',   re: /(?:^|[\s\d(\[:;,])mmol\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'nmol/L',   re: /(?:^|[\s\d(\[:;,])nmol\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'pmol/L',   re: /(?:^|[\s\d(\[:;,])pmol\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'mg/dL',    re: /(?:^|[\s\d(\[:;,])mg\/dL(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'ng/mL',    re: /(?:^|[\s\d(\[:;,])ng\/mL(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'ng/dL',    re: /(?:^|[\s\d(\[:;,])ng\/dL(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'g/dL',     re: /(?:^|[\s\d(\[:;,])g\/dL(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'g/L',      re: /(?:^|[\s\d(\[:;,])g\/L(?=$|[\s)\]:;,*#!])/ },
+                { unit: 'fL',       re: /(?:^|[\s\d(\[:;,])fL(?=$|[\s)\]:;,*#!])/ },
+                { unit: '%',        re: /(?:^|[\s\d])%(?=$|[\s)\]:;,*#!])/ }
+            ];
+            for (const p of patterns) {
+                if (p.re.test(normalizedLine)) return p.unit;
+            }
+            return null;
+        }
+
+        function evaluateUnitForField(fieldId, unit) {
+            const spec = OCR_FIELD_UNITS[fieldId];
+            if (!spec) return { status: unit ? 'ok' : 'missing', expected: '' };
+            const expectedLabel = spec.expected[0] || '';
+            if (!unit) return { status: 'missing', expected: expectedLabel };
+            if (spec.expected.includes(unit)) return { status: 'ok', expected: expectedLabel };
+            return { status: 'ambiguous', expected: expectedLabel };
+        }
+
+        // 3. Normalize decimal/thousand separators & strip stray OCR artifacts into a clean JS float
+        function normalizeOcrNumberString(rawNumStr, fieldId) {
+            if (!rawNumStr) return NaN;
+            // Strip stray OCR punctuation/flag artifacts around the numeric core
+            let s = normalizeOcrDigits(rawNumStr)
+                .replace(/^[^\d.,]+/, '')
+                .replace(/[^\d.,]+$/, '')
+                .replace(/\.{2,}/g, '.')
+                .replace(/,{2,}/g, ',')
+                .replace(/^[.,]+|[.,]+$/g, '');
+
+            if (!s || !/\d/.test(s)) return NaN;
+
+            const hasDot = s.includes('.');
+            const hasComma = s.includes(',');
+
+            if (hasDot && hasComma) {
+                // Whichever separator appears last is the decimal point
+                if (s.lastIndexOf(',') > s.lastIndexOf('.')) {
+                    s = s.replace(/\./g, '').replace(',', '.');
+                } else {
+                    s = s.replace(/,/g, '');
+                }
+            } else if (hasComma) {
+                const parts = s.split(',');
+                if (parts.length > 2) {
+                    // Multiple commas -> thousands separators (e.g. 1,200,000)
+                    s = parts.join('');
+                } else {
+                    const [intPart, fracPart] = parts;
+                    if (fracPart.length !== 3) {
+                        // Clearly decimal (e.g. 12,5 or 6,50 or 0,08)
+                        s = intPart + '.' + fracPart;
+                    } else if (intPart === '0') {
+                        // Leading zero with 3 fractional digits -> decimal (e.g. TSH 0,085)
+                        s = intPart + '.' + fracPart;
+                    } else {
+                        // Ambiguous X,XXX -> disambiguate using OCR_RANGES when available
+                        const asDecimal = parseFloat(intPart + '.' + fracPart);
+                        const asThousand = parseFloat(intPart + fracPart);
+                        const range = fieldId ? OCR_RANGES[fieldId] : null;
+                        if (range) {
+                            const decInRange = asDecimal >= range[0] && asDecimal <= range[1];
+                            const thouInRange = asThousand >= range[0] && asThousand <= range[1];
+                            if (thouInRange && (!decInRange || range[1] >= 1000)) {
+                                s = intPart + fracPart;
+                            } else {
+                                s = intPart + '.' + fracPart;
+                            }
+                        } else {
+                            s = intPart + fracPart;
+                        }
+                    }
+                }
+            } else if (hasDot) {
+                const parts = s.split('.');
+                if (parts.length > 2) {
+                    const range = fieldId ? OCR_RANGES[fieldId] : null;
+                    const asThousand = parseFloat(parts.join(''));
+                    if (parts.slice(1).every(p => p.length === 3) && range && asThousand <= range[1]) {
+                        s = parts.join('');
+                    } else {
+                        // Keep first dot as decimal, concatenate stray OCR split digits
+                        s = parts[0] + '.' + parts.slice(1).join('');
                     }
                 }
             }
-            return results;
+
+            const num = parseFloat(s);
+            return Number.isFinite(num) ? num : NaN;
+        }
+
+        // Extract a numeric value (+ optional '<' / '>' comparator) from a line segment, ignoring test-name digits
+        function extractNumericCandidate(segment, fieldId) {
+            if (!segment) return null;
+            // Remove common alphanumeric lab markers so digits inside names (25-OH, HbA1c, Free T4, B12) are not misread as values
+            const cleaned = segment
+                .replace(/\b25\s*[- ]?\s*oh\b/gi, ' ')
+                .replace(/\bhb\s*a1c\b|\ba1c\b/gi, ' ')
+                .replace(/\bfree\s*t[34]\b|\bft[34]\b|\bt[34]\b/gi, ' ')
+                .replace(/\bvit(?:amin)?\s*d[23]\b|\bb12\b/gi, ' ');
+
+            // Match optional comparator (<, <=, >, >=) + number with optional decimal/thousands separators
+            const re = /(^|[\s:=(\[,;])([<>]=?)?\s*[*~(\[]?(\d{1,4}(?:[.,]\d{1,3}){0,2})([*#!HLhl+\-)\]]?)(?=$|[\s)\]:;,/a-zA-Z%µ])/g;
+            let match;
+            const range = fieldId ? OCR_RANGES[fieldId] : null;
+            let fallbackCandidate = null;
+
+            while ((match = re.exec(cleaned)) !== null) {
+                const rawComp = match[2] || '';
+                const rawNum = match[3] || '';
+                const trailChar = match[4] || '';
+                const endIdx = match.index + match[0].length;
+                const beforeToken = cleaned.slice(0, match.index);
+                const afterToken = cleaned.slice(endIdx);
+
+                // Skip reference-range pairs like "0.4 - 4.5" or "12.0-15.5" when preceded by no comparator
+                const isRangeStart = !rawComp && (trailChar === '-' || /^\s*-\s*\d/.test(afterToken));
+                const isRangeEnd = !rawComp && /\d\s*-\s*$/.test(beforeToken);
+                if (isRangeStart || isRangeEnd) continue;
+
+                const num = normalizeOcrNumberString(rawNum, fieldId);
+                if (isNaN(num)) continue;
+
+                const comparator = rawComp ? (rawComp.startsWith('<') ? '<' : '>') : null;
+                const candidate = {
+                    value: num,
+                    comparator,
+                    rawToken: (rawComp ? rawComp + ' ' : '') + rawNum
+                };
+
+                // Prefer first candidate inside physiological OCR_RANGES; keep first out-of-range as fallback
+                if (!range || (num >= range[0] && num <= range[1])) {
+                    return candidate;
+                }
+                if (!fallbackCandidate) fallbackCandidate = candidate;
+            }
+            return fallbackCandidate;
+        }
+
+        function safeSetOcrValue(fieldId, rawValue, meta) {
+            const num = typeof rawValue === 'number'
+                ? rawValue
+                : normalizeOcrNumberString(String(rawValue), fieldId);
+            const range = OCR_RANGES[fieldId];
+            if (!range || isNaN(num)) return false;
+            const el = document.getElementById(fieldId);
+            if (num < range[0] || num > range[1]) {
+                if (el) {
+                    const isEn = currentLang === 'en';
+                    const origPlaceholder = el.dataset.origPlaceholder || el.getAttribute('placeholder') || '';
+                    if (!el.dataset.origPlaceholder) el.dataset.origPlaceholder = origPlaceholder;
+                    _isSettingOcrValue = true;
+                    el.value = '';
+                    _isSettingOcrValue = false;
+                    delete el.dataset.userEdited;
+                    delete ocrFieldMeta[fieldId];
+                    el.style.border = '2px solid #e74c3c';
+                    el.placeholder = isEn
+                        ? `⚠️ Implausible value (${rawValue}) - enter manually`
+                        : `⚠️ قيمة غير منطقية (${rawValue}) - أدخل يدوياً`;
+                    if (INPUT_BADGE_MAP[fieldId]) updateBadge(fieldId, INPUT_BADGE_MAP[fieldId]);
+                    setTimeout(() => {
+                        el.style.border = '';
+                        el.placeholder = el.dataset.origPlaceholder || '';
+                    }, 8000);
+                }
+                return false;
+            }
+            if (el) {
+                _isSettingOcrValue = true;
+                el.value = num;
+                _isSettingOcrValue = false;
+                delete el.dataset.userEdited;
+                el.style.border = '';
+                if (meta) {
+                    ocrFieldMeta[fieldId] = meta;
+                } else {
+                    delete ocrFieldMeta[fieldId];
+                }
+                if (INPUT_BADGE_MAP[fieldId]) updateBadge(fieldId, INPUT_BADGE_MAP[fieldId]);
+            }
+            return true;
+        }
+
+        // Structured OCR lab parser (returns { values, meta }) with digit/separator/comparator/unit normalization
+        function parseLabTextDetailed(rawText, moduleKeywords, ocrLines, overallConfidence) {
+            const normText = normalizeOcrUnits(normalizeOcrDigits(rawText || ''));
+            const lines = normText.split(/\r?\n/).map(l => l.trim()).filter(Boolean);
+            const normOcrLines = Array.isArray(ocrLines)
+                ? ocrLines.map(l => ({
+                    text: normalizeOcrUnits(normalizeOcrDigits(l && l.text ? l.text : '')).toLowerCase(),
+                    confidence: typeof (l && l.confidence) === 'number' ? l.confidence : null
+                }))
+                : [];
+
+            const values = {};
+            const meta = {};
+            const usedLineIndices = new Set();
+
+            const findLineConfidence = (lineLower) => {
+                for (const ol of normOcrLines) {
+                    if (ol.text && (ol.text.includes(lineLower) || lineLower.includes(ol.text)) && ol.confidence !== null) {
+                        return Math.round(ol.confidence);
+                    }
+                }
+                return typeof overallConfidence === 'number' && !isNaN(overallConfidence) ? Math.round(overallConfidence) : null;
+            };
+
+            // Pass 1: Keyword-driven matching (preferring lines with matching expected unit & in-range value)
+            for (const { keys, field } of (moduleKeywords || [])) {
+                const sortedKeys = [...keys].sort((a, b) => b.length - a.length);
+                let bestMatch = null;
+                const range = OCR_RANGES[field];
+
+                for (let idx = 0; idx < lines.length; idx++) {
+                    const line = lines[idx];
+                    const lower = line.toLowerCase();
+                    let matchedKey = null;
+                    let keyPos = -1;
+                    for (const k of sortedKeys) {
+                        const pos = lower.indexOf(k.toLowerCase());
+                        if (pos !== -1) { matchedKey = k; keyPos = pos; break; }
+                    }
+                    if (!matchedKey) continue;
+
+                    const afterSegment = line.slice(keyPos + matchedKey.length);
+                    const beforeSegment = line.slice(0, keyPos);
+                    const candidate = extractNumericCandidate(afterSegment, field) || extractNumericCandidate(beforeSegment, field);
+                    if (!candidate) continue;
+
+                    const unit = detectOcrUnit(afterSegment) || detectOcrUnit(line);
+                    const unitEval = evaluateUnitForField(field, unit);
+                    const inRange = !range || (candidate.value >= range[0] && candidate.value <= range[1]);
+
+                    let score = 10;
+                    if (inRange) score += 20;
+                    if (unitEval.status === 'ok') score += 15;
+                    else if (unitEval.status === 'ambiguous') score += 5;
+
+                    if (!bestMatch || score > bestMatch.score) {
+                        bestMatch = {
+                            idx,
+                            score,
+                            line,
+                            matchedKey,
+                            candidate,
+                            unit,
+                            unitEval,
+                            confidence: findLineConfidence(lower)
+                        };
+                    }
+                }
+
+                if (bestMatch) {
+                    usedLineIndices.add(bestMatch.idx);
+                    values[field] = bestMatch.candidate.value;
+                    meta[field] = {
+                        fieldId: field,
+                        value: bestMatch.candidate.value,
+                        rawToken: bestMatch.candidate.rawToken,
+                        comparator: bestMatch.candidate.comparator,
+                        unit: bestMatch.unit,
+                        unitStatus: bestMatch.unitEval.status,
+                        expectedUnit: bestMatch.unitEval.expected,
+                        unitAssisted: false,
+                        confidence: bestMatch.confidence
+                    };
+                }
+            }
+
+            // Pass 2: Unit-assisted fallback for unmatched fields that have a unique canonical unit in their module
+            for (const { field } of (moduleKeywords || [])) {
+                if (values[field] !== undefined) continue;
+                const spec = OCR_FIELD_UNITS[field];
+                const range = OCR_RANGES[field];
+                if (!spec || !spec.uniqueInModule || !range) continue;
+
+                for (let idx = 0; idx < lines.length; idx++) {
+                    if (usedLineIndices.has(idx)) continue;
+                    const line = lines[idx];
+                    const unit = detectOcrUnit(line);
+                    if (!unit || !spec.expected.includes(unit)) continue;
+
+                    const candidate = extractNumericCandidate(line, field);
+                    if (!candidate) continue;
+                    if (candidate.value < range[0] || candidate.value > range[1]) continue;
+
+                    usedLineIndices.add(idx);
+                    values[field] = candidate.value;
+                    meta[field] = {
+                        fieldId: field,
+                        value: candidate.value,
+                        rawToken: candidate.rawToken,
+                        comparator: candidate.comparator,
+                        unit,
+                        unitStatus: 'ok',
+                        expectedUnit: spec.expected[0] || '',
+                        unitAssisted: true,
+                        confidence: findLineConfidence(line.toLowerCase())
+                    };
+                    break;
+                }
+            }
+
+            return { values, meta };
+        }
+
+        // Preserved public signature: Parse raw Tesseract text → { fieldId: number }
+        // Optional 3rd arg metaOut receives per-field comparator/unit/confidence metadata
+        function parseLabText(rawText, moduleKeywords, metaOut) {
+            const detailed = parseLabTextDetailed(rawText, moduleKeywords);
+            if (metaOut && typeof metaOut === 'object') {
+                Object.assign(metaOut, detailed.meta);
+            }
+            return detailed.values;
+        }
+
+        // Render per-field non-blocking OCR verification badges next to clinical status badges
+        function buildFieldOcrNoticeHtml(fieldId) {
+            const m = ocrFieldMeta[fieldId];
+            if (!m) return '';
+            const isEn = currentLang === 'en';
+            const pills = [];
+
+            if (m.comparator) {
+                const txt = isEn
+                    ? `⚠️ Raw lab showed (${m.comparator} ${m.value}) — verify clinically`
+                    : `⚠️ القيمة الأصلية بالمختبر (${m.comparator} ${m.value}) — تحقق سريرياً`;
+                pills.push(`<span class="ocr-verify-badge comparator">${_escHtml(txt)}</span>`);
+            }
+            if (m.unitStatus === 'ambiguous' && m.unit) {
+                const txt = isEn
+                    ? `⚗️ Unit (${m.unit}) differs from (${m.expectedUnit}) — verify conversion`
+                    : `⚗️ الوحدة (${m.unit}) تختلف عن (${m.expectedUnit}) — تحقق من التحويل`;
+                pills.push(`<span class="ocr-verify-badge">${_escHtml(txt)}</span>`);
+            } else if (m.unitStatus === 'missing' && m.expectedUnit) {
+                const txt = isEn
+                    ? `ℹ️ Unit not detected — confirm (${m.expectedUnit})`
+                    : `ℹ️ لم تُقرأ الوحدة — تأكد أنها (${m.expectedUnit})`;
+                pills.push(`<span class="ocr-verify-badge info">${_escHtml(txt)}</span>`);
+            } else if (m.unitAssisted) {
+                const txt = isEn
+                    ? `ℹ️ Matched by unit (${m.unit}) — double-check value`
+                    : `ℹ️ مُستخرج بدلالة الوحدة (${m.unit}) — راجع الرقم`;
+                pills.push(`<span class="ocr-verify-badge info">${_escHtml(txt)}</span>`);
+            }
+            if (typeof m.confidence === 'number') {
+                if (m.confidence < 65) {
+                    const txt = isEn
+                        ? `🔍 Low OCR confidence (${m.confidence}%) — review carefully`
+                        : `🔍 دقة قراءة منخفضة (${m.confidence}%) — راجع الرقم بدقة`;
+                    pills.push(`<span class="ocr-verify-badge">${_escHtml(txt)}</span>`);
+                } else if (m.confidence < 82) {
+                    const txt = isEn
+                        ? `ℹ️ Moderate OCR confidence (${m.confidence}%) — please verify`
+                        : `ℹ️ دقة قراءة متوسطة (${m.confidence}%) — يرجى المراجعة`;
+                    pills.push(`<span class="ocr-verify-badge info">${_escHtml(txt)}</span>`);
+                }
+            }
+            return pills.join('');
+        }
+
+        function applyPendingOcrValue(module, fieldId) {
+            const summary = ocrModuleSummary[module];
+            if (!summary || !summary.skippedManual) return;
+            const idx = summary.skippedManual.findIndex(item => item.fieldId === fieldId);
+            if (idx === -1) return;
+            const item = summary.skippedManual[idx];
+            if (safeSetOcrValue(fieldId, item.value, item.meta)) {
+                summary.skippedManual.splice(idx, 1);
+                renderOcrVerifyBanner(module);
+            }
+        }
+
+        function renderOcrVerifyBanner(module) {
+            const banner = document.getElementById(module + 'OcrVerify');
+            if (!banner) return;
+            const summary = ocrModuleSummary[module];
+            if (!summary) {
+                banner.className = 'ocr-verify-banner';
+                banner.innerHTML = '';
+                return;
+            }
+
+            const isEn = currentLang === 'en';
+            const notes = [];
+            let hasWarn = false;
+
+            const activeFields = (summary.fields || []).filter(fid => ocrFieldMeta[fid]);
+            const skipped = summary.skippedManual || [];
+
+            if (typeof summary.confidence === 'number') {
+                if (summary.confidence < 65) {
+                    hasWarn = true;
+                    notes.push(isEn
+                        ? `Low overall OCR confidence (${summary.confidence}%). Carefully verify every extracted number before running the evaluation or exporting PDF.`
+                        : `دقة القراءة الضوئية منخفضة (${summary.confidence}%). يرجى مراجعة كل قيمة مستخرجة بدقة قبل التحليل أو طباعة التقرير.`);
+                } else if (summary.confidence < 82) {
+                    notes.push(isEn
+                        ? `Moderate OCR confidence (${summary.confidence}%). Please double-check the extracted values against your lab sheet.`
+                        : `دقة القراءة الضوئية متوسطة (${summary.confidence}%). يُنصح بمطابقة القيم مع ورقة التحليل.`);
+                }
+            }
+
+            activeFields.forEach(fid => {
+                const m = ocrFieldMeta[fid];
+                const lblObj = OCR_FIELD_LABELS[fid];
+                const fieldLabel = lblObj ? (isEn ? lblObj.en : lblObj.ar) : fid;
+                if (m.comparator) {
+                    hasWarn = true;
+                    notes.push(isEn
+                        ? `${fieldLabel}: Raw lab report had "${m.comparator} ${m.value}". Numeric value (${m.value}) was entered for calculation/gauges — verify clinically.`
+                        : `${fieldLabel}: القيمة الأصلية كانت "${m.comparator} ${m.value}". تم إدخال الرقم (${m.value}) للحساب والمؤشرات — يرجى التحقق السريري.`);
+                }
+                if (m.unitStatus === 'ambiguous' && m.unit) {
+                    hasWarn = true;
+                    notes.push(isEn
+                        ? `${fieldLabel}: Detected unit (${m.unit}) differs from expected (${m.expectedUnit}). Confirm unit conversion before evaluation.`
+                        : `${fieldLabel}: الوحدة المقروءة (${m.unit}) تختلف عن المتوقعة (${m.expectedUnit}). تأكد من التحويل قبل التحليل.`);
+                } else if (m.unitStatus === 'missing' && m.expectedUnit) {
+                    notes.push(isEn
+                        ? `${fieldLabel}: Unit was not detected in the scan — confirm your lab reports it in (${m.expectedUnit}).`
+                        : `${fieldLabel}: لم تُقرأ الوحدة من الصورة — تأكد أن التحليل بوحدة (${m.expectedUnit}).`);
+                }
+            });
+
+            if (skipped.length > 0) {
+                hasWarn = true;
+                const names = skipped.map(s => {
+                    const lblObj = OCR_FIELD_LABELS[s.fieldId];
+                    const name = lblObj ? (isEn ? lblObj.en : lblObj.ar) : s.fieldId;
+                    return `${name} (${s.meta && s.meta.comparator ? s.meta.comparator + ' ' : ''}${s.value})`;
+                }).join(', ');
+                notes.push(isEn
+                    ? `Your manual edit was kept and not overwritten for: ${names}.`
+                    : `تم الحفاظ على تعديلك اليدوي دون استبداله للحقول: ${names}.`);
+            }
+
+            if (notes.length === 0) {
+                banner.className = 'ocr-verify-banner';
+                banner.innerHTML = '';
+                return;
+            }
+
+            const title = hasWarn
+                ? (isEn ? '⚠️ Clinical OCR Verification Recommended' : '⚠️ يرجى التحقق السريري من نتائج القراءة الضوئية')
+                : (isEn ? 'ℹ️ OCR Verification Check' : 'ℹ️ مراجعة القيم المستخرجة');
+
+            const actionBtns = skipped.length > 0
+                ? `<div class="ocr-verify-actions">${skipped.map(s => {
+                    const lblObj = OCR_FIELD_LABELS[s.fieldId];
+                    const name = lblObj ? (isEn ? lblObj.en : lblObj.ar) : s.fieldId;
+                    const btnTxt = isEn ? `Apply OCR: ${name} (${s.value})` : `تطبيق قراءة OCR: ${name} (${s.value})`;
+                    return `<button type="button" class="ocr-apply-btn" onclick="applyPendingOcrValue('${module}','${s.fieldId}')">${_escHtml(btnTxt)}</button>`;
+                }).join('')}</div>`
+                : '';
+
+            banner.className = 'ocr-verify-banner show' + (hasWarn ? '' : ' info');
+            banner.innerHTML = `<strong>${_escHtml(title)}</strong><ul>${notes.map(n => `<li>${_escHtml(n)}</li>`).join('')}</ul>${actionBtns}`;
+        }
+
+        function refreshAllOcrNotices() {
+            Object.keys(ocrModuleSummary).forEach(renderOcrVerifyBanner);
         }
 
         async function handleOCR(input, module) {
@@ -1846,7 +2602,14 @@
                     logger: () => {} // suppress console noise
                 });
 
-                const rawText = result.data.text || '';
+                const rawText = (result && result.data && result.data.text) ? result.data.text : '';
+                const overallConfidence = (result && result.data && typeof result.data.confidence === 'number')
+                    ? Math.round(result.data.confidence)
+                    : null;
+                const ocrLines = (result && result.data && Array.isArray(result.data.lines))
+                    ? result.data.lines
+                    : [];
+
                 if (!rawText.trim()) {
                     status.textContent = t('novals');
                     status.classList.remove('processing');
@@ -1855,9 +2618,11 @@
                     return;
                 }
 
-                // Parse extracted text using keyword matching
+                // Parse extracted text using normalized digits/decimals/comparators/units
                 const moduleKeys = OCR_KEYWORDS[module] || [];
-                const values = parseLabText(rawText, moduleKeys);
+                const detailed = parseLabTextDetailed(rawText, moduleKeys, ocrLines, overallConfidence);
+                const values = detailed.values;
+                const metaMap = detailed.meta;
 
                 const found = Object.keys(values).length;
                 if (found === 0) {
@@ -1868,11 +2633,34 @@
                     return;
                 }
 
-                // Apply values through range validation
+                // Apply values through range validation without silently overwriting manual user edits
                 let rejected = 0;
+                const appliedFields = [];
+                const skippedManual = [];
+
                 for (const [fieldId, val] of Object.entries(values)) {
-                    if (!safeSetOcrValue(fieldId, val)) rejected++;
+                    const el = document.getElementById(fieldId);
+                    const fieldMeta = metaMap[fieldId] || null;
+                    const range = OCR_RANGES[fieldId];
+                    const inRange = range && !isNaN(val) && val >= range[0] && val <= range[1];
+
+                    if (el && el.dataset.userEdited === 'true' && el.value.trim() !== '' && parseFloat(el.value) !== val && inRange) {
+                        skippedManual.push({ fieldId, value: val, meta: fieldMeta });
+                        continue;
+                    }
+                    if (!safeSetOcrValue(fieldId, val, fieldMeta)) {
+                        rejected++;
+                    } else {
+                        appliedFields.push(fieldId);
+                    }
                 }
+
+                ocrModuleSummary[module] = {
+                    confidence: overallConfidence,
+                    fields: appliedFields,
+                    skippedManual
+                };
+                renderOcrVerifyBanner(module);
 
                 status.textContent = rejected > 0 ? t('rejected', rejected) : t('success');
                 status.classList.remove('processing');
@@ -1887,6 +2675,28 @@
 
             input.value = '';
         }
+
+        // Track manual user edits on lab inputs so OCR never silently overwrites manual entries
+        document.addEventListener('DOMContentLoaded', function() {
+            Object.keys(INPUT_BADGE_MAP).forEach(fieldId => {
+                const el = document.getElementById(fieldId);
+                if (!el) return;
+                el.addEventListener('input', function() {
+                    if (_isSettingOcrValue) return;
+                    if (el.value.trim() !== '') {
+                        el.dataset.userEdited = 'true';
+                    } else {
+                        delete el.dataset.userEdited;
+                    }
+                    if (ocrFieldMeta[fieldId]) {
+                        delete ocrFieldMeta[fieldId];
+                        updateBadge(fieldId, INPUT_BADGE_MAP[fieldId]);
+                        const mod = OCR_FIELD_TO_MODULE[fieldId];
+                        if (mod) renderOcrVerifyBanner(mod);
+                    }
+                });
+            });
+        });
 
         // ===== CLINICAL LOGIC =====
 
@@ -2103,7 +2913,7 @@
             let diagnosis = '';
 
             if (fbs) {
-                let status = 'normal', statusText = 'طبيعي', statusClass = 'normal';
+                let status = 'normal', statusText = T('normal'), statusClass = 'normal';
                 if (fbs >= 126) { status = 'danger'; statusText = T('diabetes_dx'); statusClass = 'danger'; diagnosis = 'diabetes'; }
                 else if (fbs >= 100) { status = 'warning'; statusText = T('prediabetes_dx'); statusClass = 'warning'; diagnosis = 'prediabetes'; }
 
@@ -2112,7 +2922,7 @@
             }
 
             if (hba1c) {
-                let status = 'normal', statusText = 'طبيعي', statusClass = 'normal';
+                let status = 'normal', statusText = T('normal'), statusClass = 'normal';
                 if (hba1c >= 6.5) { status = 'danger'; statusText = T('diabetes_dx'); statusClass = 'danger'; diagnosis = 'diabetes'; }
                 else if (hba1c >= 5.7) { status = 'warning'; statusText = T('prediabetes_dx'); statusClass = 'warning'; diagnosis = 'prediabetes'; }
 
@@ -2121,7 +2931,7 @@
             }
 
             if (rbs) {
-                let status = 'normal', statusText = 'طبيعي', statusClass = 'normal';
+                let status = 'normal', statusText = T('normal'), statusClass = 'normal';
                 if (rbs >= 200) { status = 'danger'; statusText = T('rbs_very_high'); statusClass = 'danger'; }
                 else if (rbs >= 140) { status = 'warning'; statusText = T('rbs_high'); statusClass = 'warning'; }
 
@@ -2211,7 +3021,8 @@
             const hct = parseFloat(document.getElementById('anemiaHct').value);
             const mcv = parseFloat(document.getElementById('anemiaMCV').value);
             const ferritin = parseFloat(document.getElementById('anemiaFerritin').value);
-            const isMale = userGender === 'male';
+            const ranges = getGenderRanges(getEffectiveGender(false));
+            const isMale = ranges.isMale;
 
             if (!hb && !hct && !mcv && !ferritin) {
                 showAlert(T('alert_warn'), T('alert_empty'));
@@ -2222,33 +3033,27 @@
             let recommendations = [];
             let anemiaType = '';
 
-            // ===== Hemoglobin — قيم مختلفة حسب الجنس =====
+            // ===== Hemoglobin — unified gender-specific thresholds =====
             if (hb) {
-                const hbDanger = isMale ? 13.5 : 12.0;
-                const hbWarning = isMale ? 14.0 : 12.5;
-                const hbMax = isMale ? 17.5 : 15.5;
-                const hbMin = isMale ? 10 : 9;
-                let statusText = 'طبيعي', statusClass = 'normal';
+                const { danger: hbDanger, warning: hbWarning, min: hbMin, max: hbMax, rangeText } = ranges.hb;
+                let statusText = T('normal'), statusClass = 'normal';
                 if (hb < hbDanger) { statusText = T('hb_low'); statusClass = 'danger'; }
                 else if (hb < hbWarning) { statusText = T('hb_borderline'); statusClass = 'warning'; }
 
-                const genderNote = isMale ? `(${T('male_ref')}: 13.5–17.5)` : `(${T('female_ref')}: 12.0–15.5)`;
+                const genderNote = `(${isMale ? T('male_ref') : T('female_ref')}: ${rangeText})`;
                 html += `<div class="result-item"><span class="result-label">Hemoglobin <small style="color:#aaa">${genderNote}</small></span><span class="result-value ${statusClass}">${hb} g/dL — ${statusText}</span></div>`;
                 html += makeGauge(hb, hbMin, hbMax, hbWarning, hbDanger, 'g/dL', 'Hemoglobin', 'low_bad');
                 if (hb < hbDanger) recommendations.push(Tr('anemia_confirm'));
             }
 
-            // ===== Hematocrit — قيم مختلفة حسب الجنس =====
+            // ===== Hematocrit — unified gender-specific thresholds =====
             if (hct) {
-                const hctDanger = isMale ? 39 : 36;
-                const hctWarning = isMale ? 42 : 38;
-                const hctMax = isMale ? 54 : 47;
-                const hctMin = isMale ? 30 : 28;
-                let statusText = 'طبيعي', statusClass = 'normal';
+                const { danger: hctDanger, warning: hctWarning, min: hctMin, max: hctMax, rangeText } = ranges.hct;
+                let statusText = T('normal'), statusClass = 'normal';
                 if (hct < hctDanger) { statusText = T('hct_low'); statusClass = 'danger'; }
                 else if (hct < hctWarning) { statusText = T('hct_borderline'); statusClass = 'warning'; }
 
-                const genderNote = isMale ? `(${T('male_ref')}: 39–54%)` : `(${T('female_ref')}: 36–47%)`;
+                const genderNote = `(${isMale ? T('male_ref') : T('female_ref')}: ${rangeText})`;
                 html += `<div class="result-item"><span class="result-label">Hematocrit <small style="color:#aaa">${genderNote}</small></span><span class="result-value ${statusClass}">${hct}% — ${statusText}</span></div>`;
                 html += makeGauge(hct, hctMin, hctMax, hctWarning, hctDanger, '%', 'Hematocrit', 'low_bad');
             }
@@ -2256,23 +3061,21 @@
             // ===== MCV =====
             if (mcv) {
                 let statusText = 'Normocytic', statusClass = 'normal';
-                if (mcv < 80) { statusText = 'Microcytic (صغيرة)'; statusClass = 'danger'; anemiaType = 'microcytic'; }
-                else if (mcv > 100) { statusText = 'Macrocytic (كبيرة)'; statusClass = 'warning'; anemiaType = 'macrocytic'; }
+                if (mcv < 80) { statusText = currentLang === 'en' ? 'Microcytic' : 'Microcytic (صغيرة)'; statusClass = 'danger'; anemiaType = 'microcytic'; }
+                else if (mcv > 100) { statusText = currentLang === 'en' ? 'Macrocytic' : 'Macrocytic (كبيرة)'; statusClass = 'warning'; anemiaType = 'macrocytic'; }
 
                 html += `<div class="result-item"><span class="result-label">MCV <small style="color:#aaa">(80–100 fL)</small></span><span class="result-value ${statusClass}">${mcv} fL — ${statusText}</span></div>`;
                 html += makeGauge(mcv, 60, 120, 80, 100, 'fL', 'MCV', 'range_bad');
             }
 
-            // ===== Ferritin — قيم مختلفة حسب الجنس =====
+            // ===== Ferritin — unified gender-specific thresholds =====
             if (ferritin) {
-                const ferDanger = isMale ? 20 : 15;
-                const ferWarning = isMale ? 40 : 30;
-                const ferMax = isMale ? 300 : 200;
-                let statusText = 'طبيعي', statusClass = 'normal';
+                const { danger: ferDanger, warning: ferWarning, max: ferMax, rangeText } = ranges.ferritin;
+                let statusText = T('normal'), statusClass = 'normal';
                 if (ferritin < ferDanger) { statusText = T('ferritin_very_low'); statusClass = 'danger'; }
                 else if (ferritin < ferWarning) { statusText = T('ferritin_low'); statusClass = 'warning'; }
 
-                const genderNote = isMale ? `(${T('male_ref')}: 20–300)` : `(${T('female_ref')}: 15–200)`;
+                const genderNote = `(${isMale ? T('male_ref') : T('female_ref')}: ${rangeText})`;
                 html += `<div class="result-item"><span class="result-label">Ferritin <small style="color:#aaa">${genderNote}</small></span><span class="result-value ${statusClass}">${ferritin} ng/mL — ${statusText}</span></div>`;
                 html += makeGauge(ferritin, 0, ferMax, ferWarning, ferDanger, 'ng/mL', 'Ferritin', 'low_bad');
                 if (ferritin < ferDanger) recommendations.push(Tr('ferritin_low'));
@@ -2292,7 +3095,7 @@
                 html += `</ul></div>`;
             }
 
-            if (hb && hb < (isMale ? 13.5 : 12.0)) html += showPredefinedResponse('anemia');
+            if (hb && hb < ranges.hb.danger) html += showPredefinedResponse('anemia');
             html += showPredefinedResponse('general');
             document.getElementById('anemiaResultContent').innerHTML = html;
             const _anemiaResult = document.getElementById('anemiaResult'); _anemiaResult.classList.remove('show'); void _anemiaResult.offsetWidth; _anemiaResult.classList.add('show');
@@ -2312,7 +3115,7 @@
             let showThyroidAdvice = false;
 
             if (tsh) {
-                let status = 'normal', statusText = 'طبيعي', statusClass = 'normal';
+                let status = 'normal', statusText = T('normal'), statusClass = 'normal';
                 if (tsh > 4.5) { status = 'danger'; statusText = T('tsh_high'); statusClass = 'danger'; showThyroidAdvice = true; }
                 else if (tsh < 0.4) { status = 'warning'; statusText = T('tsh_low'); statusClass = 'warning'; }
 
@@ -2330,7 +3133,7 @@
             }
 
             if (ft4) {
-                let status = 'normal', statusText = 'طبيعي', statusClass = 'normal';
+                let status = 'normal', statusText = T('normal'), statusClass = 'normal';
                 if (ft4 < 0.8) { status = 'danger'; statusText = T('ft4_low'); statusClass = 'danger'; }
                 else if (ft4 > 1.8) { status = 'warning'; statusText = T('ft4_high'); statusClass = 'warning'; }
 
@@ -2402,7 +3205,7 @@
 
         function analyzeUric() {
             const value = parseFloat(document.getElementById('uricValue').value);
-            const gender = document.getElementById('uricGender').value;
+            const gender = getEffectiveGender(true);
 
             if (!value) {
                 showAlert(T('alert_warn'), T('alert_empty_uric'));
@@ -2412,10 +3215,9 @@
             let html = '';
             let recommendations = [];
 
-            const normalMax = gender === 'male' ? 7.0 : 6.0;
-            const normalMin = gender === 'male' ? 3.5 : 2.5;
+            const { min: normalMin, max: normalMax } = getGenderRanges(gender).uric;
 
-            let status = 'normal', statusText = 'طبيعي', statusClass = 'normal';
+            let status = 'normal', statusText = T('normal'), statusClass = 'normal';
             if (value > normalMax) { status = 'danger'; statusText = T('uric_high'); statusClass = 'danger'; }
             else if (value < normalMin) { status = 'warning'; statusText = T('uric_low'); statusClass = 'warning'; }
 
@@ -2501,7 +3303,8 @@
             }
 
             const drugs = medicationDB[specialty] || [];
-            drugSelect.innerHTML = '<option value="">-- اختر الدواء --</option>';
+            const defaultOpt = currentLang === 'en' ? '-- Select Medication --' : '-- اختر الدواء --';
+            drugSelect.innerHTML = `<option value="">${defaultOpt}</option>`;
 
             drugs.forEach((drug, index) => {
                 const option = document.createElement('option');
@@ -2511,6 +3314,7 @@
             });
 
             drugGroup.style.display = 'block';
+            document.getElementById('drugInfoCard').classList.remove('show');
         }
 
         function showDrugInfo() {
@@ -2539,9 +3343,13 @@
             html += `<div class="drug-detail"><strong>${isEn?'📝 Notes:':'📝 ملاحظات:'}</strong> ${_notes}</div>`;
             html += `<button class="btn btn-secondary mt-2" onclick="saveMedication('${specialty}', ${drugIndex})">${currentLang==='en'?'💾 Save Medication':'💾 حفظ الدواء'}</button>`;
 
-            // Add predefined response for Metformin
+            // Add predefined response for Metformin or Levothyroxine
             if (drug.name === 'Metformin') {
                 html += showPredefinedResponse('metformin');
+            } else if (drug.name.toLowerCase().includes('levothyroxine')) {
+                html += `<div class="predefined-response" style="background: linear-gradient(135deg, #fff3e0 0%, #ffe0b2 100%); border-color: var(--warning); color: #856404;">
+                    <strong>${T('med_advice_title')}</strong><br>${thyroidMedicationAdvice[currentLang] || thyroidMedicationAdvice.ar}
+                </div>`;
             }
 
             content.innerHTML = html;
@@ -2576,11 +3384,14 @@
             }
 
             let html = '';
+            const isEn = currentLang === 'en';
             saved.forEach((med, index) => {
+                const dose = (isEn && med.doseEn) ? med.doseEn : med.dose;
+                const timing = (isEn && med.timingEn) ? med.timingEn : med.timing;
                 html += `<div class="medication-item">
                     <div class="medication-info">
                         <h4>${med.nameAr} - ${med.name}</h4>
-                        <p>${med.dose} | ${med.timing}</p>
+                        <p>${dose} | ${timing}</p>
                     </div>
                     <div class="medication-actions">
                         <button class="btn-icon" style="background: var(--danger); color: white;" onclick="deleteMed(${index})">🗑️</button>
@@ -2847,22 +3658,24 @@
                 data.push({ module: 'السكري', moduleEn: 'Diabetes', test: 'Random Blood Sugar', value: diabetesRBS + ' mg/dL', status, statusEn: status === 'مرتفع جداً' ? 'Very High' : status === 'مرتفع' ? 'High' : 'Normal', color });
             }
 
-            // Anemia
+            // Anemia (unified gender-specific thresholds matching analyzeAnemia)
             const anemiaHb = parseFloat(document.getElementById('anemiaHb').value);
             const anemiaHct = parseFloat(document.getElementById('anemiaHct').value);
             const anemiaMCV = parseFloat(document.getElementById('anemiaMCV').value);
             const anemiaFerritin = parseFloat(document.getElementById('anemiaFerritin').value);
+            const anemiaRanges = getGenderRanges(getEffectiveGender(false));
 
             if (anemiaHb) {
-                let status = 'طبيعي', color = '#27ae60';
-                if (anemiaHb < 12) { status = 'منخفض'; color = '#e74c3c'; }
-                else if (anemiaHb < 13.5) { status = 'حدودي'; color = '#f39c12'; }
-                data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'Hemoglobin', value: anemiaHb + ' g/dL', status, statusEn: status === 'منخفض' ? 'Low' : status === 'حدودي' ? 'Borderline' : 'Normal', color });
+                let status = 'طبيعي', statusEn = 'Normal', color = '#27ae60';
+                if (anemiaHb < anemiaRanges.hb.danger) { status = 'منخفض — أنيميا'; statusEn = 'Low — Anemia'; color = '#e74c3c'; }
+                else if (anemiaHb < anemiaRanges.hb.warning) { status = 'حدودي منخفض'; statusEn = 'Borderline Low'; color = '#f39c12'; }
+                data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'Hemoglobin', value: anemiaHb + ' g/dL', status, statusEn, color });
             }
             if (anemiaHct) {
-                let status = 'طبيعي', color = '#27ae60';
-                if (anemiaHct < 36) { status = 'منخفض'; color = '#e74c3c'; }
-                data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'Hematocrit', value: anemiaHct + '%', status, statusEn: status === 'منخفض' ? 'Low' : 'Normal', color });
+                let status = 'طبيعي', statusEn = 'Normal', color = '#27ae60';
+                if (anemiaHct < anemiaRanges.hct.danger) { status = 'منخفض'; statusEn = 'Low'; color = '#e74c3c'; }
+                else if (anemiaHct < anemiaRanges.hct.warning) { status = 'حدودي منخفض'; statusEn = 'Borderline Low'; color = '#f39c12'; }
+                data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'Hematocrit', value: anemiaHct + '%', status, statusEn, color });
             }
             if (anemiaMCV) {
                 let status = 'Normocytic', color = '#27ae60';
@@ -2871,21 +3684,21 @@
                 data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'MCV', value: anemiaMCV + ' fL', status, statusEn: status, color });
             }
             if (anemiaFerritin) {
-                let status = 'طبيعي', color = '#27ae60';
-                if (anemiaFerritin < 15) { status = 'نقص حديد شديد'; color = '#e74c3c'; }
-                else if (anemiaFerritin < 30) { status = 'منخفض'; color = '#f39c12'; }
-                data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'Ferritin', value: anemiaFerritin + ' ng/mL', status, statusEn: status === 'نقص حديد شديد' ? 'Severe Iron Deficiency' : status === 'منخفض' ? 'Low' : 'Normal', color });
+                let status = 'طبيعي', statusEn = 'Normal', color = '#27ae60';
+                if (anemiaFerritin < anemiaRanges.ferritin.danger) { status = 'نقص حديد شديد'; statusEn = 'Severe Iron Deficiency'; color = '#e74c3c'; }
+                else if (anemiaFerritin < anemiaRanges.ferritin.warning) { status = 'منخفض'; statusEn = 'Low'; color = '#f39c12'; }
+                data.push({ module: 'الأنيميا', moduleEn: 'Anemia', test: 'Ferritin', value: anemiaFerritin + ' ng/mL', status, statusEn, color });
             }
 
-            // Uric Acid
+            // Uric Acid (unified gender-specific thresholds matching analyzeUric)
             const uricValue = parseFloat(document.getElementById('uricValue').value);
-            const uricGender = document.getElementById('uricGender').value;
+            const uricRanges = getGenderRanges(getEffectiveGender(true)).uric;
 
             if (uricValue) {
-                const normalMax = uricGender === 'male' ? 7.0 : 6.0;
-                let status = 'طبيعي', color = '#27ae60';
-                if (uricValue > normalMax) { status = 'مرتفع'; color = '#e74c3c'; }
-                data.push({ module: 'اليوريك', moduleEn: 'Uric Acid', test: 'Uric Acid', value: uricValue + ' mg/dL', status, statusEn: status === 'مرتفع' ? 'High' : 'Normal', color });
+                let status = 'طبيعي', statusEn = 'Normal', color = '#27ae60';
+                if (uricValue > uricRanges.max) { status = 'مرتفع'; statusEn = 'High'; color = '#e74c3c'; }
+                else if (uricValue < uricRanges.min) { status = 'منخفض'; statusEn = 'Low'; color = '#f39c12'; }
+                data.push({ module: 'اليوريك', moduleEn: 'Uric Acid', test: 'Uric Acid', value: uricValue + ' mg/dL', status, statusEn, color });
             }
 
             // Thyroid
@@ -2933,7 +3746,8 @@
                 }
                 if (item.module === 'الأنيميا' && item.test === 'Hemoglobin') {
                     const val = parseFloat(item.value);
-                    if (val < 12) responses.push(predefinedResponses.anemia[isEn ? 'en' : 'ar']);
+                    const hbDanger = getGenderRanges(getEffectiveGender(false)).hb.danger;
+                    if (val < hbDanger) responses.push(predefinedResponses.anemia[isEn ? 'en' : 'ar']);
                 }
                 if (item.module === 'الغدة' && item.test === 'TSH') {
                     const val = parseFloat(item.value);
@@ -2970,207 +3784,381 @@
             window.open('https://wa.me/?text=' + encoded, '_blank');
         }
 
-        function printReport() {
-            // Full PDF export using jsPDF — load script only once
-            if (window.jspdf) { _doPrintReport(); return; }
-            const script = document.createElement('script');
-            script.src = 'https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js';
-            script.onload = function() { _doPrintReport(); };
-            script.onerror = function() {
-                console.warn('jsPDF CDN failed — falling back to print window');
-                _printFallback();
-            };
-            document.head.appendChild(script);
+        function _escHtml(str) {
+            return String(str == null ? '' : str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
         }
 
-        function _doPrintReport() {
-                try {
+        function _loadScriptOnce(src, isLoaded) {
+            return new Promise((resolve) => {
+                if (isLoaded()) { resolve(true); return; }
+                const existing = document.querySelector(`script[src="${src}"]`);
+                if (existing) {
+                    existing.addEventListener('load', () => resolve(true), { once: true });
+                    existing.addEventListener('error', () => resolve(false), { once: true });
+                    return;
+                }
+                const script = document.createElement('script');
+                script.src = src;
+                script.onload = () => resolve(true);
+                script.onerror = () => resolve(false);
+                document.head.appendChild(script);
+            });
+        }
+
+        function buildPrintableReportBody(reportData, responses, isEn) {
+            const dir = isEn ? 'ltr' : 'rtl';
+            const align = isEn ? 'left' : 'right';
+            const oppAlign = isEn ? 'right' : 'left';
+            const accent = userGender === 'female' ? '#d63384' : '#1a6fc4';
+            const accentDark = userGender === 'female' ? '#b02a6e' : '#145a9e';
+            const accentLight = userGender === 'female' ? '#fce4ec' : '#e3f2fd';
+
+            const locale = isEn ? 'en-US' : 'ar-EG';
+            const dateStr = new Date().toLocaleString(locale, {
+                year: 'numeric', month: 'long', day: 'numeric',
+                hour: '2-digit', minute: '2-digit'
+            });
+            const genderLabel = isEn
+                ? (userGender === 'male' ? 'Male' : userGender === 'female' ? 'Female' : 'Not specified')
+                : (userGender === 'male' ? 'ذكر' : userGender === 'female' ? 'أنثى' : 'غير محدد');
+
+            const headers = isEn
+                ? ['Module', 'Test', 'Value', 'Status']
+                : ['الموديول', 'الفحص', 'القيمة', 'التقييم'];
+
+            const rowsHtml = reportData.length > 0
+                ? reportData.map((item, idx) => {
+                    const mod = isEn ? (item.moduleEn || item.module) : item.module;
+                    const stat = isEn ? (item.statusEn || item.status) : item.status;
+                    const bg = idx % 2 === 0 ? '#f8f9fa' : '#ffffff';
+                    return `<tr style="background:${bg};">
+                        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;font-weight:700;color:#2c3e50;text-align:${align};">${_escHtml(mod)}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#2c3e50;text-align:${align};direction:ltr;unicode-bidi:plaintext;">${_escHtml(item.test)}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:#2c3e50;font-weight:600;text-align:${align};direction:ltr;unicode-bidi:plaintext;">${_escHtml(item.value)}</td>
+                        <td style="padding:10px 12px;border-bottom:1px solid #e5e7eb;color:${_escHtml(item.color)};font-weight:700;text-align:${align};">${_escHtml(stat)}</td>
+                    </tr>`;
+                }).join('')
+                : `<tr><td colspan="4" style="padding:16px;text-align:center;color:#7f8c8d;">${isEn ? 'No lab data entered.' : 'لا توجد بيانات تحاليل مدخلة.'}</td></tr>`;
+
+            const recSection = responses.length > 0
+                ? `<div style="margin-top:20px;background:#fff8e1;border:1px solid #f39c12;border-${align}:5px solid #f39c12;border-radius:10px;padding:16px 18px;">
+                    <h3 style="margin:0 0 10px 0;font-size:15px;color:#856404;text-align:${align};">${isEn ? '💬 Clinical Recommendations & Summary' : '💬 التوصيات والملخص الإكلينيكي'}</h3>
+                    <ul style="margin:0;padding-${align}:20px;color:#6c5303;font-size:13.5px;line-height:1.75;text-align:${align};">
+                        ${responses.map(r => `<li style="margin-bottom:6px;">${_escHtml(r)}</li>`).join('')}
+                    </ul>
+                </div>`
+                : '';
+
+            const disclaimer = isEn
+                ? '⚠️ This clinical summary is for educational purposes only and does not replace consultation with a qualified physician or pharmacist.'
+                : '⚠️ هذا التقرير للأغراض التعليمية والإرشادية فقط ولا يغني عن استشارة الطبيب أو الصيدلي المختص.';
+
+            return `<div dir="${dir}" lang="${isEn ? 'en' : 'ar'}" style="font-family:'Segoe UI','Tahoma','Arial',sans-serif;color:#2c3e50;background:#ffffff;padding:0;margin:0;width:100%;box-sizing:border-box;">
+                <div style="background:linear-gradient(135deg,${accent} 0%,${accentDark} 100%);color:#ffffff;padding:20px 24px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;gap:16px;">
+                    <div style="text-align:${align};">
+                        <div style="font-size:22px;font-weight:800;letter-spacing:0.2px;">💊 PharmD Smart Hub</div>
+                        <div style="font-size:13px;opacity:0.92;margin-top:4px;">${isEn ? 'Patient Clinical Laboratory Report' : 'تقرير الحالة والتحاليل الإكلينيكية'}</div>
+                    </div>
+                    <div style="text-align:${oppAlign};font-size:12px;opacity:0.95;line-height:1.6;">
+                        <div>📅 ${_escHtml(dateStr)}</div>
+                        <div>👤 ${isEn ? 'Gender:' : 'الجنس:'} <strong>${_escHtml(genderLabel)}</strong></div>
+                    </div>
+                </div>
+
+                <div style="padding:20px 22px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
+                    <div style="background:${accent};color:#ffffff;padding:9px 14px;border-radius:6px;font-size:14px;font-weight:700;margin-bottom:12px;text-align:${align};">
+                        ${isEn ? '🔬 Laboratory Results' : '🔬 نتائج التحاليل المخبرية'}
+                    </div>
+
+                    <table style="width:100%;border-collapse:collapse;font-size:13.5px;">
+                        <thead>
+                            <tr style="background:${accentLight};">
+                                <th style="padding:10px 12px;color:${accentDark};text-align:${align};border-bottom:2px solid ${accent};font-weight:700;">${headers[0]}</th>
+                                <th style="padding:10px 12px;color:${accentDark};text-align:${align};border-bottom:2px solid ${accent};font-weight:700;">${headers[1]}</th>
+                                <th style="padding:10px 12px;color:${accentDark};text-align:${align};border-bottom:2px solid ${accent};font-weight:700;">${headers[2]}</th>
+                                <th style="padding:10px 12px;color:${accentDark};text-align:${align};border-bottom:2px solid ${accent};font-weight:700;">${headers[3]}</th>
+                            </tr>
+                        </thead>
+                        <tbody>${rowsHtml}</tbody>
+                    </table>
+
+                    ${recSection}
+
+                    <div style="margin-top:22px;padding:12px 14px;background:#f1f5f9;border-radius:8px;text-align:center;font-size:11.5px;color:#64748b;line-height:1.6;">
+                        <div>${disclaimer}</div>
+                        <div style="margin-top:4px;font-weight:600;">PharmD Smart Hub © 2026 | Clinical Pharmacy Assistant</div>
+                    </div>
+                </div>
+            </div>`;
+        }
+
+        function buildPrintableReportHTML(reportData, responses, isEn) {
+            const title = isEn ? 'PharmD Smart Hub - Clinical Report' : 'تقرير الحالة - PharmD Smart Hub';
+            const bodyMarkup = buildPrintableReportBody(reportData, responses, isEn);
+            return `<!DOCTYPE html>
+<html lang="${isEn ? 'en' : 'ar'}" dir="${isEn ? 'ltr' : 'rtl'}">
+<head>
+    <meta charset="UTF-8">
+    <title>${_escHtml(title)}</title>
+    <style>
+        @page { size: A4 portrait; margin: 12mm; }
+        * { box-sizing: border-box; }
+        body {
+            margin: 0;
+            padding: 16px;
+            background: #ffffff;
+            color: #2c3e50;
+            font-family: 'Segoe UI', 'Tahoma', 'Arial', sans-serif;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+    </style>
+</head>
+<body>${bodyMarkup}</body>
+</html>`;
+        }
+
+        async function printReport() {
+            const reportData = collectReportData();
+            const isEn = currentLang === 'en';
+            if (reportData.length === 0) {
+                showAlert('⚠️', isEn ? 'No data entered. Please fill in at least one module first.' : 'لا توجد بيانات مدخلة لإصدار التقرير. يرجى إدخال قيم في أحد الموديولات أولاً.');
+                return;
+            }
+
+            // Load jsPDF + html2canvas lazily (cached automatically by sw.js)
+            const [jspdfOk, h2cOk] = await Promise.all([
+                _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js', () => !!(window.jspdf && window.jspdf.jsPDF)),
+                _loadScriptOnce('https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js', () => typeof window.html2canvas === 'function')
+            ]);
+
+            if (jspdfOk && (h2cOk || isEn)) {
+                await _doPrintReport();
+            } else {
+                console.warn('PDF CDN unavailable — falling back to bilingual RTL/LTR print layout');
+                _printFallback();
+            }
+        }
+
+        function _doEnglishVectorPdf(reportData, responses) {
+            const { jsPDF } = window.jspdf;
+            const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+            const sanitizeAscii = (s) => String(s || '')
+                .replace(/[\u2013\u2014]/g, '-')
+                .replace(/[\u26A0\uFE0F]/g, '[!]')
+                .replace(/[^\x20-\x7E]/g, '')
+                .replace(/\s+/g, ' ')
+                .trim();
+
+            const accent  = userGender === 'female' ? [214, 51, 132] : [26, 111, 196];
+            const dark    = [44, 62, 80];
+            const gray    = [127, 140, 141];
+            const green   = [39, 174, 96];
+            const red     = [231, 76, 60];
+            const orange  = [243, 156, 18];
+
+            const W = 210, M = 14, CW = W - M * 2;
+            let y = 0;
+
+            // Header
+            doc.setFillColor(...accent);
+            doc.rect(0, 0, W, 28, 'F');
+            doc.setTextColor(255, 255, 255);
+            doc.setFontSize(16); doc.setFont('helvetica', 'bold');
+            doc.text('PharmD Smart Hub', M, 12);
+            doc.setFontSize(9); doc.setFont('helvetica', 'normal');
+            doc.text('Patient Clinical Laboratory Report', M, 19);
+            doc.text(sanitizeAscii(new Date().toLocaleString('en-US')), W - M, 19, { align: 'right' });
+            y = 35;
+
+            // Gender
+            doc.setTextColor(...dark); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text('Gender:', M, y);
+            doc.setFont('helvetica', 'normal');
+            doc.text(userGender === 'male' ? 'Male' : (userGender === 'female' ? 'Female' : 'Not specified'), M + 18, y);
+            y += 8;
+
+            // Lab Results section
+            doc.setFillColor(...accent);
+            doc.rect(M, y, CW, 7, 'F');
+            doc.setTextColor(255, 255, 255); doc.setFontSize(10); doc.setFont('helvetica', 'bold');
+            doc.text('Laboratory Results', M + 2, y + 5);
+            y += 10;
+
+            doc.setFillColor(227, 242, 253);
+            doc.rect(M, y, CW, 7, 'F');
+            doc.setTextColor(...accent); doc.setFontSize(9); doc.setFont('helvetica', 'bold');
+            doc.text('Module', M + 2, y + 5);
+            doc.text('Test',   M + 36, y + 5);
+            doc.text('Value',  M + 90, y + 5);
+            doc.text('Status', M + 130, y + 5);
+            y += 9;
+
+            reportData.forEach((item, i) => {
+                if (y > 270) { doc.addPage(); y = 20; }
+                if (i % 2 === 0) {
+                    doc.setFillColor(248, 249, 250);
+                    doc.rect(M, y - 1, CW, 7, 'F');
+                }
+                doc.setTextColor(...dark); doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+                doc.text(sanitizeAscii(item.moduleEn || item.module), M + 2,  y + 4.5);
+                doc.text(sanitizeAscii(item.test),                    M + 36, y + 4.5);
+                doc.text(sanitizeAscii(item.value),                   M + 90, y + 4.5);
+                const statusColor = item.color === '#e74c3c' ? red : (item.color === '#f39c12' ? orange : green);
+                doc.setTextColor(...statusColor); doc.setFont('helvetica', 'bold');
+                doc.text(sanitizeAscii(item.statusEn || item.status), M + 130, y + 4.5);
+                y += 7;
+            });
+            y += 6;
+
+            // Clinical Recommendations
+            if (responses.length > 0) {
+                const wrapped = responses.map(r => doc.splitTextToSize('- ' + sanitizeAscii(r), CW - 6));
+                const boxH = 10 + wrapped.reduce((acc, lines) => acc + lines.length * 5.2, 0);
+                if (y + boxH > 275) { doc.addPage(); y = 20; }
+                doc.setFillColor(255, 248, 220);
+                doc.setDrawColor(243, 156, 18);
+                doc.roundedRect(M, y, CW, boxH, 3, 3, 'FD');
+                doc.setTextColor(133, 100, 4); doc.setFont('helvetica', 'bold'); doc.setFontSize(9.5);
+                doc.text('Clinical Recommendations', M + 3, y + 6);
+                y += 10;
+                doc.setFont('helvetica', 'normal'); doc.setFontSize(8.5);
+                wrapped.forEach(lines => {
+                    doc.text(lines, M + 3, y);
+                    y += lines.length * 5.2;
+                });
+            }
+
+            // Footer
+            doc.setFillColor(236, 240, 241);
+            doc.rect(0, 282, W, 15, 'F');
+            doc.setTextColor(...gray); doc.setFontSize(7.5); doc.setFont('helvetica', 'italic');
+            doc.text('Disclaimer: This report is for educational purposes only and does not replace professional medical advice.', W / 2, 288, { align: 'center' });
+            doc.text('PharmD Smart Hub (c) 2026 | Offline Ready', W / 2, 293, { align: 'center' });
+
+            doc.save('PharmD_Report_' + new Date().toISOString().slice(0, 10) + '.pdf');
+        }
+
+        async function _doPrintReport() {
+            const reportData = collectReportData();
+            const responses = getClinicalResponses(reportData);
+            const isEn = currentLang === 'en';
+            let host = null;
+
+            try {
+                if (typeof window.html2canvas === 'function' && window.jspdf && window.jspdf.jsPDF) {
+                    // Render styled bilingual RTL/LTR HTML using the browser's native Arabic shaping engine
+                    host = document.createElement('div');
+                    host.style.cssText = 'position:fixed;left:-10000px;top:0;width:794px;background:#ffffff;padding:24px;z-index:-1;pointer-events:none;';
+                    host.innerHTML = buildPrintableReportBody(reportData, responses, isEn);
+                    document.body.appendChild(host);
+
+                    // Wait one frame for layout & font shaping
+                    await new Promise(resolve => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+
+                    const canvas = await window.html2canvas(host, {
+                        scale: 2,
+                        useCORS: true,
+                        backgroundColor: '#ffffff',
+                        width: host.scrollWidth,
+                        windowWidth: host.scrollWidth
+                    });
+
                     const { jsPDF } = window.jspdf;
                     const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' });
+                    const marginMm = 10;
+                    const printableW = 210 - marginMm * 2;
+                    const printableH = 297 - marginMm * 2;
+                    const pageSlicePx = Math.floor(canvas.width * (printableH / printableW));
 
-                    // ── Colors
-                    const blue    = [26,  111, 196];
-                    const dark    = [44,  62,  80];
-                    const gray    = [127, 140, 141];
-                    const green   = [39,  174, 96];
-                    const red     = [231, 76,  60];
-                    const orange  = [243, 156, 18];
-                    const yellow  = [255, 248, 225];
+                    let offsetY = 0;
+                    let pageIndex = 0;
+                    while (offsetY < canvas.height) {
+                        const sliceH = Math.min(pageSlicePx, canvas.height - offsetY);
+                        const pageCanvas = document.createElement('canvas');
+                        pageCanvas.width = canvas.width;
+                        pageCanvas.height = sliceH;
+                        const ctx = pageCanvas.getContext('2d');
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, pageCanvas.width, pageCanvas.height);
+                        ctx.drawImage(canvas, 0, offsetY, canvas.width, sliceH, 0, 0, canvas.width, sliceH);
 
-                    const W = 210, M = 14, CW = W - M * 2;
-                    let y = 0;
+                        const sliceHeightMm = (sliceH / canvas.width) * printableW;
+                        if (pageIndex > 0) doc.addPage();
+                        doc.addImage(pageCanvas.toDataURL('image/png'), 'PNG', marginMm, marginMm, printableW, sliceHeightMm);
 
-                    // ── Header bar
-                    doc.setFillColor(...blue);
-                    doc.rect(0, 0, W, 28, 'F');
-                    doc.setTextColor(255, 255, 255);
-                    doc.setFontSize(16); doc.setFont('helvetica','bold');
-                    doc.text('PharmD Smart Hub', M, 12);
-                    doc.setFontSize(9);  doc.setFont('helvetica','normal');
-                    doc.text('Patient Clinical Report', M, 19);
-                    doc.text(new Date().toLocaleString('ar-EG'), W - M, 19, { align: 'right' });
-                    y = 35;
-
-                    // ── Patient gender
-                    doc.setTextColor(...dark); doc.setFontSize(10); doc.setFont('helvetica','bold');
-                    doc.text('Gender / \u0627\u0644\u062C\u0646\u0633:', M, y);
-                    doc.setFont('helvetica','normal');
-                    doc.text(userGender === 'male' ? 'Male / \u0630\u0643\u0631' : (userGender === 'female' ? 'Female / \u0623\u0646\u062B\u0649' : 'Not specified'), M + 32, y);
-                    y += 8;
-
-                    // ── Section: Lab Results
-                    doc.setFillColor(...blue);
-                    doc.rect(M, y, CW, 7, 'F');
-                    doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
-                    doc.text('Laboratory Results', M + 2, y + 5);
-                    y += 10;
-
-                    // Collect report data
-                    const reportData = collectReportData();
-                    if (reportData.length > 0) {
-                        // Table header
-                        doc.setFillColor(227, 242, 253);
-                        doc.rect(M, y, CW, 7, 'F');
-                        doc.setTextColor(...blue); doc.setFontSize(9); doc.setFont('helvetica','bold');
-                        doc.text('Module',   M + 2, y + 5);
-                        doc.text('Test',     M + 38, y + 5);
-                        doc.text('Value',    M + 88, y + 5);
-                        doc.text('Status',   M + 130, y + 5);
-                        y += 9;
-
-                        reportData.forEach((item, i) => {
-                            if (y > 270) { doc.addPage(); y = 20; }
-                            if (i % 2 === 0) {
-                                doc.setFillColor(248, 249, 250);
-                                doc.rect(M, y - 1, CW, 7, 'F');
-                            }
-                            doc.setTextColor(...dark); doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-                            doc.text(item.module, M + 2,   y + 4.5);
-                            doc.text(item.test,   M + 38,  y + 4.5);
-                            doc.text(item.value,  M + 88,  y + 4.5);
-                            // Color-coded status
-                            const statusColor = item.color === '#e74c3c' ? red : (item.color === '#f39c12' ? orange : green);
-                            doc.setTextColor(...statusColor); doc.setFont('helvetica','bold');
-                            doc.text(item.status, M + 130, y + 4.5);
-                            y += 7;
-                        });
-                        y += 4;
-                    } else {
-                        doc.setTextColor(...gray); doc.setFontSize(9);
-                        doc.text('No lab data entered.', M, y + 5);
-                        y += 12;
+                        offsetY += sliceH;
+                        pageIndex++;
                     }
 
-                    // ── Section: Thyroid Results
-                    const tsh = document.getElementById('thyroidTSH').value;
-                    const ft4 = document.getElementById('thyroidT4').value;
-                    if (tsh || ft4) {
-                        if (y > 255) { doc.addPage(); y = 20; }
-                        doc.setFillColor(...blue); doc.rect(M, y, CW, 7, 'F');
-                        doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
-                        doc.text('Thyroid Profile', M + 2, y + 5);
-                        y += 10;
-                        doc.setTextColor(...dark); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-                        if (tsh) {
-                            const tshNum = parseFloat(tsh);
-                            const tshColor = tshNum > 4.5 || tshNum < 0.4 ? red : green;
-                            doc.text('TSH:', M + 2, y); doc.setTextColor(...tshColor); doc.setFont('helvetica','bold');
-                            doc.text(tsh + ' mIU/L — ' + (tshNum > 4.5 ? 'High (Hypothyroid)' : tshNum < 0.4 ? 'Low (Hyperthyroid)' : 'Normal'), M + 20, y);
-                            y += 7;
-                        }
-                        if (ft4) {
-                            const ft4Num = parseFloat(ft4);
-                            const ft4Color = ft4Num < 0.8 || ft4Num > 1.8 ? red : green;
-                            doc.setTextColor(...dark); doc.setFont('helvetica','normal');
-                            doc.text('Free T4:', M + 2, y); doc.setTextColor(...ft4Color); doc.setFont('helvetica','bold');
-                            doc.text(ft4 + ' ng/dL — ' + (ft4Num < 0.8 ? 'Low' : ft4Num > 1.8 ? 'High' : 'Normal'), M + 22, y);
-                            y += 7;
-                        }
-                        y += 4;
-                    }
-
-                    // ── Section: Vitamin D
-                    const vitD = document.getElementById('vitaminD').value;
-                    if (vitD) {
-                        if (y > 255) { doc.addPage(); y = 20; }
-                        doc.setFillColor(...blue); doc.rect(M, y, CW, 7, 'F');
-                        doc.setTextColor(255,255,255); doc.setFontSize(10); doc.setFont('helvetica','bold');
-                        doc.text('Vitamin D', M + 2, y + 5);
-                        y += 10;
-                        const vitNum = parseFloat(vitD);
-                        const vitColor = vitNum < 20 ? red : vitNum < 30 ? orange : green;
-                        const vitStatus = vitNum < 20 ? 'Severe Deficiency' : vitNum < 30 ? 'Insufficient' : 'Sufficient';
-                        doc.setTextColor(...dark); doc.setFont('helvetica','normal'); doc.setFontSize(9);
-                        doc.text('Vitamin D:', M + 2, y); doc.setTextColor(...vitColor); doc.setFont('helvetica','bold');
-                        doc.text(vitD + ' ng/mL — ' + vitStatus, M + 22, y);
-                        y += 10;
-                    }
-
-                    // ── Section: Clinical Recommendations
-                    const responses = getClinicalResponses(collectReportData());
-                    if (responses.length > 0) {
-                        if (y > 240) { doc.addPage(); y = 20; }
-                        doc.setFillColor(255, 248, 220);
-                        doc.setDrawColor(243, 156, 18);
-                        doc.roundedRect(M, y, CW, 7 + responses.length * 7, 3, 3, 'FD');
-                        doc.setTextColor(133, 100, 4); doc.setFont('helvetica','bold'); doc.setFontSize(9.5);
-                        doc.text('Clinical Recommendations', M + 3, y + 5.5);
-                        y += 9;
-                        doc.setFont('helvetica','normal'); doc.setFontSize(8.5);
-                        responses.forEach(r => {
-                            if (y > 275) { doc.addPage(); y = 20; }
-                            // jsPDF default font can't render Arabic — strip non-ASCII chars for PDF output
-                            const safeText = r.replace(/[\u0600-\u06FF\u0750-\u077F]/g, '').replace(/\s+/g,' ').trim() || r;
-                            const lines = doc.splitTextToSize('• ' + safeText, CW - 6);
-                            doc.text(lines, M + 3, y);
-                            y += lines.length * 5.5;
-                        });
-                        y += 5;
-                    }
-
-                    // ── Disclaimer footer
-                    if (y > 265) { doc.addPage(); y = 20; }
-                    doc.setFillColor(236, 240, 241);
-                    doc.rect(0, 282, W, 15, 'F');
-                    doc.setTextColor(...gray); doc.setFontSize(7); doc.setFont('helvetica','italic');
-                    doc.text('⚠ This report is for educational purposes only and does not replace professional medical advice.', W/2, 288, {align:'center'});
-                    doc.text('PharmD Smart Hub © 2026 | Offline Ready', W/2, 293, {align:'center'});
-
-                    doc.save('PharmD_Report_' + new Date().toISOString().slice(0,10) + '.pdf');
-                } catch(e) {
-                    console.error('PDF error:', e);
-                    // Fallback to print window
-                    const reportBody = document.getElementById('reportBody');
-                    const pw = window.open('', '_blank');
-                    pw.document.write(`<!DOCTYPE html><html dir="rtl" lang="ar"><head><meta charset="UTF-8"><title>تقرير PharmD</title>
-                    <style>body{font-family:Arial,sans-serif;padding:30px;color:#2c3e50;direction:rtl;}
-                    h2{color:#1a6fc4;border-bottom:2px solid #1a6fc4;padding-bottom:8px;}
-                    table{width:100%;border-collapse:collapse;}th{background:#1a6fc4;color:white;padding:10px;}td{padding:8px;border-bottom:1px solid #ecf0f1;}</style></head>
-                    <body><h2>💊 PharmD Smart Hub — تقرير الحالة</h2>${reportBody.innerHTML}</body></html>`);
-                    pw.document.close(); pw.focus();
-                    setTimeout(() => { pw.print(); }, 500);
+                    doc.save('PharmD_Report_' + new Date().toISOString().slice(0, 10) + '.pdf');
+                    return;
                 }
+
+                // If html2canvas is unavailable in English mode, use clean ASCII-safe vector PDF
+                if (isEn && window.jspdf && window.jspdf.jsPDF) {
+                    _doEnglishVectorPdf(reportData, responses);
+                    return;
+                }
+
+                // In Arabic mode without html2canvas, use clean native RTL print layout instead of broken helvetica
+                _printFallback(reportData, responses);
+            } catch (e) {
+                console.error('PDF export error:', e);
+                _printFallback(reportData, responses);
+            } finally {
+                if (host && host.parentNode) host.parentNode.removeChild(host);
+            }
         }
 
-        function _printFallback() {
-            const reportBody = document.getElementById('reportBody');
+        function _printFallback(precollectedData, precollectedResponses) {
+            const reportData = precollectedData || collectReportData();
+            const responses = precollectedResponses || getClinicalResponses(reportData);
+            const isEn = currentLang === 'en';
+            const fullHtml = buildPrintableReportHTML(reportData, responses, isEn);
+
             const pw = window.open('', '_blank');
-            pw.document.write(`<!DOCTYPE html><html dir="rtl"><head><meta charset="UTF-8"><title>تقرير</title>
-            <style>body{font-family:Arial;padding:24px;direction:rtl;}table{width:100%;border-collapse:collapse;}th{background:#1a6fc4;color:#fff;padding:8px;}td{padding:7px;border-bottom:1px solid #ddd;}</style></head>
-            <body><h2>💊 PharmD Smart Hub</h2>${reportBody.innerHTML}</body></html>`);
-            pw.document.close(); pw.print();
+            if (pw && !pw.closed) {
+                pw.document.open();
+                pw.document.write(fullHtml);
+                pw.document.close();
+                pw.focus();
+                setTimeout(() => { try { pw.print(); } catch (err) { console.warn(err); } }, 350);
+                return;
+            }
+
+            // Popup-blocker / standalone PWA fallback: print via dedicated @media print container
+            const container = document.getElementById('printReportContainer');
+            if (container) {
+                container.innerHTML = buildPrintableReportBody(reportData, responses, isEn);
+                document.body.classList.add('printing-report');
+                const cleanup = () => {
+                    document.body.classList.remove('printing-report');
+                    container.innerHTML = '';
+                };
+                window.addEventListener('afterprint', cleanup, { once: true });
+                setTimeout(() => {
+                    window.print();
+                    setTimeout(cleanup, 1500);
+                }, 150);
+            }
         }
 
         function extractTextFromReport(element) {
-            let text = '*تقرير الحالة - PharmD Smart Hub*\n';
+            const isEn = currentLang === 'en';
+            let text = isEn ? '*Clinical Report - PharmD Smart Hub*\n' : '*تقرير الحالة - PharmD Smart Hub*\n';
             text += '═══════════════════════\n\n';
 
             const dateEl = element.querySelector('.report-date');
-            if (dateEl) text += '📅 ' + dateEl.textContent + '\n\n';
+            if (dateEl) text += dateEl.textContent.trim() + '\n\n';
 
             const rows = element.querySelectorAll('.report-table tbody tr');
             if (rows.length > 0) {
-                text += '*النتائج:*\n';
+                text += isEn ? '*Laboratory Results:*\n' : '*النتائج:*\n';
                 rows.forEach(row => {
                     const cells = row.querySelectorAll('td');
                     if (cells.length >= 4) {
@@ -3180,16 +4168,18 @@
                 text += '\n';
             }
 
-            const summaryItems = element.querySelectorAll('.report-summary li');;
+            const summaryItems = element.querySelectorAll('.report-summary li');
             if (summaryItems.length > 0) {
-                text += '*التوصيات:*\n';
+                text += isEn ? '*Clinical Recommendations:*\n' : '*التوصيات:*\n';
                 summaryItems.forEach(item => {
                     text += `💬 ${item.textContent}\n`;
                 });
                 text += '\n';
             }
 
-            text += '⚠️ تذكر: هذا التطبيق مساعد إكلينيكي ولا يغني عن استشارة الطبيب المختص.';
+            text += isEn
+                ? '⚠️ Reminder: This app is a clinical assistant and does not replace consultation with a qualified physician.'
+                : '⚠️ تذكر: هذا التطبيق مساعد إكلينيكي ولا يغني عن استشارة الطبيب المختص.';
 
             return text;
         }
@@ -3240,12 +4230,14 @@
 
         function toggleLanguage() {
             currentLang = currentLang === 'ar' ? 'en' : 'ar';
+            try { localStorage.setItem('pharmd_lang', currentLang); } catch (e) {}
             applyLanguage(currentLang);
         }
 
         function applyLanguage(lang) {
-            const L = LANG[lang];
-            const isEn = lang === 'en';
+            currentLang = (lang === 'en') ? 'en' : 'ar';
+            const L = LANG[currentLang];
+            const isEn = currentLang === 'en';
 
             // ── Document direction & lang
             document.documentElement.lang = L.htmlLang;
@@ -3278,7 +4270,7 @@
             const modalTitle  = document.querySelector('#reportModal .modal-header h3');
             const waBtnEl     = document.querySelector('button[onclick="shareWhatsApp()"]');
             const printBtnEl  = document.querySelector('button[onclick="printReport()"]');
-            const closeBtnEls = document.querySelectorAll('button[onclick="closeReportModal()"]');
+            const closeBtnEls = document.querySelectorAll('#reportModal .modal-footer button[onclick="closeReportModal()"]');
             if (modalTitle)  modalTitle.textContent   = L.reportTitle;
             if (waBtnEl)     waBtnEl.textContent      = L.waBtn;
             if (printBtnEl)  printBtnEl.textContent   = L.printBtn;
@@ -3288,6 +4280,19 @@
             const footerPs = document.querySelectorAll('.footer .disclaimer');
             if (footerPs[0]) footerPs[0].textContent = L.disclaimer;
             if (footerPs[1]) footerPs[1].textContent = L.footerDisc;
+
+            // ── Refresh dynamic bilingual UI pieces (badges, saved meds, reminders, active drug info)
+            if (typeof refreshAllBadges === 'function') refreshAllBadges();
+            if (typeof renderSavedMeds === 'function') renderSavedMeds();
+            if (typeof renderReminders === 'function') renderReminders();
+            const medDrugEl = document.getElementById('medDrug');
+            if (medDrugEl && medDrugEl.options.length > 0 && medDrugEl.options[0].value === '') {
+                medDrugEl.options[0].textContent = isEn ? '-- Select Medication --' : '-- اختر الدواء --';
+            }
+            const drugCardEl = document.getElementById('drugInfoCard');
+            if (drugCardEl && drugCardEl.classList.contains('show') && typeof showDrugInfo === 'function') {
+                showDrugInfo();
+            }
 
             // ── Recalculate nav position (header width may change with lang)
             setTimeout(fixNavTop, 50);
@@ -3310,7 +4315,8 @@
             document.querySelectorAll('input:not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea').forEach(el => {
                 el.value = '';
                 el.style.border = '';
-                el.placeholder = el.getAttribute('placeholder') || '';
+                delete el.dataset.userEdited;
+                el.placeholder = el.dataset.origPlaceholder || el.getAttribute('placeholder') || '';
             });
 
             // Reset selects to proper defaults (not blank)
@@ -3326,6 +4332,18 @@
             if (drugCard) drugCard.classList.remove('show');
             const drugGroup = document.getElementById('medDrugGroup');
             if (drugGroup) drugGroup.style.display = 'none';
+
+            // Clear OCR verification metadata, banners & previews
+            Object.keys(ocrFieldMeta).forEach(k => delete ocrFieldMeta[k]);
+            Object.keys(ocrModuleSummary).forEach(k => delete ocrModuleSummary[k]);
+            document.querySelectorAll('.ocr-verify-banner').forEach(el => {
+                el.className = 'ocr-verify-banner';
+                el.innerHTML = '';
+            });
+            document.querySelectorAll('.ocr-preview').forEach(el => {
+                el.style.display = 'none';
+                el.removeAttribute('src');
+            });
 
             // Clear result badges + boxes
             document.querySelectorAll('.badge-container').forEach(el => el.innerHTML = '');
@@ -3370,7 +4388,7 @@
                     {src:logo, sizes:"512x512", type:"image/png", purpose:"any maskable"}
                 ]
             };
-            var b = new Blob([JSON.stringify(m)],{type:"application/manifest+json"});
+            var b = new Blob([JSON.stringify(m)],{type:"application/manifest+json;charset=utf-8"});
             var l = document.createElement("link");
             l.rel = "manifest"; l.href = URL.createObjectURL(b);
             document.head.appendChild(l);
@@ -3378,3 +4396,4 @@
     })();
     </script>
 </body>
+</html>
