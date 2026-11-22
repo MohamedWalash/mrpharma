@@ -1,12 +1,12 @@
 /**
- * PharmD Smart Hub — Offline Service Worker (v14)
- * - Pre-caches core shell & any bundled local vendor assets via resilient Promise.allSettled
+ * PharmD Smart Hub — Offline Service Worker (v15)
+ * - Pre-caches core shell & bundled local ./vendor/ assets via resilient Promise.allSettled
  * - Navigation: Network-first with cached shell fallback (supports index.html & index.html.html)
- * - Same-origin static assets: Stale-While-Revalidate for seamless offline + fresh updates
- * - Approved CDN libraries (Tesseract.js, jsPDF, html2canvas): Cache-first with runtime caching
+ * - Local ./vendor/ & same-origin static assets: Stale-While-Revalidate (instant offline load, no CDN wait)
+ * - Approved CDN libraries (Tesseract.js, jsPDF, html2canvas): Cache-first fallback with runtime caching
  */
-const CORE_CACHE = 'pharmd-smart-hub-v14';
-const RUNTIME_CACHE = 'pharmd-smart-hub-runtime-v14';
+const CORE_CACHE = 'pharmd-smart-hub-v15';
+const RUNTIME_CACHE = 'pharmd-smart-hub-runtime-v15';
 const ALLOWED_CACHES = [CORE_CACHE, RUNTIME_CACHE];
 
 const CORE_ASSETS = [
@@ -16,10 +16,14 @@ const CORE_ASSETS = [
   './manifest.json'
 ];
 
-const OPTIONAL_LOCAL_VENDORS = [
-  './vendor/tesseract.min.js',
+const LOCAL_VENDOR_ASSETS = [
   './vendor/jspdf.umd.min.js',
   './vendor/html2canvas.min.js',
+  './vendor/tesseract.min.js'
+];
+
+const OPTIONAL_LOCAL_VENDORS = [
+  ...LOCAL_VENDOR_ASSETS,
   './tesseract.min.js',
   './jspdf.umd.min.js',
   './html2canvas.min.js'
