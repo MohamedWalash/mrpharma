@@ -1,18 +1,17 @@
 /**
- * PharmD Smart Hub — Offline Service Worker (v15)
+ * PharmD Smart Hub — Offline Service Worker (v16)
  * - Pre-caches core shell & bundled local ./vendor/ assets via resilient Promise.allSettled
- * - Navigation: Network-first with cached shell fallback (supports index.html & index.html.html)
+ * - Navigation: Network-first with cached shell fallback (canonical ./index.html)
  * - Local ./vendor/ & same-origin static assets: Stale-While-Revalidate (instant offline load, no CDN wait)
  * - Approved CDN libraries (Tesseract.js, jsPDF, html2canvas): Cache-first fallback with runtime caching
  */
-const CORE_CACHE = 'pharmd-smart-hub-v15';
-const RUNTIME_CACHE = 'pharmd-smart-hub-runtime-v15';
+const CORE_CACHE = 'pharmd-smart-hub-v16';
+const RUNTIME_CACHE = 'pharmd-smart-hub-runtime-v16';
 const ALLOWED_CACHES = [CORE_CACHE, RUNTIME_CACHE];
 
 const CORE_ASSETS = [
   './',
   './index.html',
-  './index.html.html',
   './manifest.json'
 ];
 
@@ -24,9 +23,13 @@ const LOCAL_VENDOR_ASSETS = [
 
 const OPTIONAL_LOCAL_VENDORS = [
   ...LOCAL_VENDOR_ASSETS,
+  './vendor/pdf.min.js',
+  './vendor/pdf.worker.min.js',
   './tesseract.min.js',
   './jspdf.umd.min.js',
-  './html2canvas.min.js'
+  './html2canvas.min.js',
+  './pdf.min.js',
+  './pdf.worker.min.js'
 ];
 
 const CACHEABLE_CDN_HOSTS = [
@@ -76,7 +79,7 @@ async function cacheIfAvailable(cache, assetUrl) {
       await cache.put(assetUrl, response.clone());
     }
   } catch (err) {
-    // Missing optional alias (e.g., index.html vs index.html.html or unbundled vendor) — skip cleanly
+    // Missing optional local vendor alias — skip cleanly
   }
 }
 
@@ -146,7 +149,6 @@ self.addEventListener('fetch', (event) => {
           const cached =
             (await caches.match(req, { ignoreSearch: true })) ||
             (await caches.match('./index.html')) ||
-            (await caches.match('./index.html.html')) ||
             (await caches.match('./'));
           return cached || buildOfflineFallbackResponse();
         })

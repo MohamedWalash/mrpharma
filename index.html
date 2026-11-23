@@ -1642,6 +1642,8 @@
 
                 <div id="anemia-ocr-mount"></div>
 
+                <div id="anemiaGenderDefaultNote" style="display:none;margin-bottom:14px;"></div>
+
                 <div style="font-size:0.84rem;font-weight:700;color:var(--primary-dark);margin:8px 0 12px;padding-bottom:6px;border-bottom:1px solid var(--light-gray);"
                     data-ar="🩸 كريات الدم الحمراء ومؤشرات الأنيميا" data-en="🩸 Red Blood Cell Panel &amp; Indices">🩸 كريات الدم الحمراء ومؤشرات الأنيميا</div>
 
@@ -1715,7 +1717,7 @@
                 </div>
                 <div class="form-group" id="uricGenderGroup">
                     <label class="form-label" for="uricGender" data-ar="الجنس (Gender)" data-en="Gender">الجنس (Gender)</label>
-                    <select id="uricGender" class="form-select" onchange="updateBadge(&#39;uricValue&#39;, &#39;uric&#39;)">
+                    <select id="uricGender" class="form-select" onchange="this.dataset.userSelected='true';updateBadge(&#39;uricValue&#39;, &#39;uric&#39;);syncUricGenderUI();">
                         <option value="male" data-ar="ذكر / Male" data-en="Male">ذكر / Male</option>
                         <option value="female" data-ar="أنثى / Female" data-en="Female">أنثى / Female</option>
                     </select>
@@ -2284,6 +2286,35 @@
         //   borderline-low zone (13.0–13.4 males, 12.0–12.4 females) accounts for lab reference variability.
         // - Ferritin: WHO adult depleted iron stores (<15 ng/mL), low/borderline stores (15–29 ng/mL),
         //   adequate stores (30–300 ng/mL males, 30–200 ng/mL females); interpret with CBC & inflammatory context.
+        function hasExplicitSessionGender() {
+            const sessionGender = (userGender === 'male' || userGender === 'female')
+                ? userGender
+                : (typeof _safeStorageGet === 'function' ? _safeStorageGet('session', 'pharmGender', null) : null);
+            return sessionGender === 'male' || sessionGender === 'female';
+        }
+
+        function isUsingDefaultGenderFallback(preferUricSelect) {
+            if (hasExplicitSessionGender()) return false;
+            if (preferUricSelect) {
+                const uricSel = document.getElementById('uricGender');
+                if (uricSel && uricSel.dataset && uricSel.dataset.userSelected === 'true' && (uricSel.value === 'male' || uricSel.value === 'female')) {
+                    return false;
+                }
+            }
+            return getEffectiveGender(preferUricSelect) === 'male';
+        }
+
+        function buildDefaultGenderNoticeHtml(isEn, forPrint) {
+            const dir = isEn ? 'ltr' : 'rtl';
+            const text = isEn
+                ? '⚠️ No session/profile gender is selected — default Male reference ranges are being used (Hemoglobin, Hematocrit, RBC, Ferritin, and Uric Acid). Select the patient\'s gender for accurate sex-specific ranges.'
+                : '⚠️ لم يتم تحديد جنس المريض لهذه الجلسة — يتم تطبيق النطاقات المرجعية الافتراضية للذكور (الهيموجلوبين، الهيماتوكريت، كريات الدم الحمراء، الفيريتين، وحمض اليوريك). يُرجى اختيار الجنس لضمان دقة النطاقات المرجعية.';
+            const actionBtn = forPrint
+                ? ''
+                : ` <button type="button" onclick="checkGenderOnLoad(true)" style="margin-inline-start:8px;padding:3px 10px;border:1px solid #d97706;background:#ffffff;color:#92400e;border-radius:6px;font-size:0.78rem;font-weight:700;cursor:pointer;">${isEn ? 'Select Gender' : 'اختيار الجنس'}</button>`;
+            return `<div class="default-gender-notice" dir="${dir}" style="margin:0 0 12px 0;padding:9px 12px;background:#fffbeb;color:#92400e;border:1px solid #f59e0b;border-inline-start:4px solid #d97706;border-radius:8px;font-size:0.83rem;font-weight:600;line-height:1.55;text-align:start;">${text}${actionBtn}</div>`;
+        }
+
         function getEffectiveGender(preferUricSelect) {
             // Always prefer active session/profile gender automatically once selected (avoids redundant Uric Acid re-prompts)
             const sessionGender = (userGender === 'male' || userGender === 'female')
@@ -2301,6 +2332,7 @@
             const group = document.getElementById('uricGenderGroup');
             const sel = document.getElementById('uricGender');
             const note = document.getElementById('uricGenderAutoNote');
+            const anemiaNote = document.getElementById('anemiaGenderDefaultNote');
             const sessionGender = (userGender === 'male' || userGender === 'female')
                 ? userGender
                 : (typeof _safeStorageGet === 'function' ? _safeStorageGet('session', 'pharmGender', null) : null);
@@ -2308,7 +2340,10 @@
             const isEn = typeof currentLang !== 'undefined' && currentLang === 'en';
 
             if (hasSessionGender) {
-                if (sel) sel.value = sessionGender;
+                if (sel) {
+                    sel.value = sessionGender;
+                    delete sel.dataset.userSelected;
+                }
                 if (group) group.style.display = 'none';
                 if (note) {
                     const r = getGenderRanges(sessionGender).uric;
@@ -2316,15 +2351,43 @@
                         ? (isEn ? 'Female' : 'أنثى')
                         : (isEn ? 'Male' : 'ذكر');
                     note.style.display = 'block';
+                    note.style.background = 'var(--primary-light)';
+                    note.style.color = 'var(--primary-dark)';
+                    note.style.border = '';
                     note.innerHTML = isEn
                         ? `👤 Active profile gender: <strong>${gLabel}</strong> — Uric Acid reference range <span dir="ltr" style="unicode-bidi:isolate;">(${r.rangeText} mg/dL)</span> applied automatically.`
                         : `👤 جنس الجلسة المحدّد: <strong>${gLabel}</strong> — يتم تطبيق النطاق المرجعي لليوريك أسيد <span dir="ltr" style="unicode-bidi:isolate;">(${r.rangeText} mg/dL)</span> تلقائياً.`;
                 }
+                if (anemiaNote) {
+                    anemiaNote.style.display = 'none';
+                    anemiaNote.innerHTML = '';
+                }
             } else {
                 if (group) group.style.display = '';
+                const usingMaleFallback = isUsingDefaultGenderFallback(true);
                 if (note) {
-                    note.style.display = 'none';
-                    note.innerHTML = '';
+                    if (usingMaleFallback) {
+                        const r = getGenderRanges('male').uric;
+                        note.style.display = 'block';
+                        note.style.background = '#fffbeb';
+                        note.style.color = '#92400e';
+                        note.style.border = '1px solid #f59e0b';
+                        note.innerHTML = isEn
+                            ? `⚠️ Session gender not set — defaulting to <strong>Male</strong> Uric Acid range <span dir="ltr" style="unicode-bidi:isolate;">(${r.rangeText} mg/dL)</span>. Choose above or select profile gender.`
+                            : `⚠️ لم يتم تحديد جنس الجلسة — يتم تطبيق النطاق الافتراضي <strong>للذكور</strong> لليوريك أسيد <span dir="ltr" style="unicode-bidi:isolate;">(${r.rangeText} mg/dL)</span>. يمكنك تغييره أعلاه أو تحديد جنس الجلسة.`;
+                    } else {
+                        note.style.display = 'none';
+                        note.innerHTML = '';
+                    }
+                }
+                if (anemiaNote) {
+                    if (isUsingDefaultGenderFallback(false)) {
+                        anemiaNote.style.display = 'block';
+                        anemiaNote.innerHTML = buildDefaultGenderNoticeHtml(isEn, false);
+                    } else {
+                        anemiaNote.style.display = 'none';
+                        anemiaNote.innerHTML = '';
+                    }
                 }
             }
         }
@@ -2706,6 +2769,8 @@
 
             return {
                 resetTheme: function() {
+                    const uricSel = document.getElementById('uricGender');
+                    if (uricSel) delete uricSel.dataset.userSelected;
                     applyTheme(null);
                     applyCycleVisibility(null);
                     syncUricGenderUI();
@@ -2755,15 +2820,15 @@
             mount.innerHTML = `
                 <div class="ocr-section">
                     <button class="ocr-toggle-btn" onclick="toggleOcr('${module}OcrBody', this)">
-                        <span><span data-ar="📷 قراءة تلقائية من الصورة" data-en="📷 Auto-Read from Image">📷 قراءة تلقائية من الصورة</span></span>
+                        <span><span data-ar="📷 قراءة تلقائية من الصورة / PDF" data-en="📷 Auto-Read from Image / PDF">📷 قراءة تلقائية من الصورة / PDF</span></span>
                         <span class="ocr-toggle-arrow">▼</span>
                     </button>
                     <div class="ocr-body" id="${module}OcrBody">
                         <div class="ocr-buttons" style="justify-content:center; margin-bottom:10px;">
-                            <button class="ocr-btn" onclick="triggerOCR('${module}OcrInput')"><span data-ar="📁 اختيار صورة" data-en="📁 Choose Image">📁 اختيار صورة</span></button>
+                            <button class="ocr-btn" onclick="triggerOCR('${module}OcrInput')"><span data-ar="📁 اختيار صورة / PDF" data-en="📁 Choose Image / PDF">📁 اختيار صورة / PDF</span></button>
                             <button class="ocr-btn" onclick="triggerOCR('${module}OcrCamera')"><span data-ar="📷 الكاميرا" data-en="📷 Camera">📷 الكاميرا</span></button>
                         </div>
-                        <input type="file" id="${module}OcrInput" accept="image/*" style="position:absolute;opacity:0;width:1px;height:1px;overflow:hidden;" onchange="handleOCR(this, '${module}')">
+                        <input type="file" id="${module}OcrInput" accept="image/*,.pdf,application/pdf" style="position:absolute;opacity:0;width:1px;height:1px;overflow:hidden;" onchange="handleOCR(this, '${module}')">
                         <input type="file" id="${module}OcrCamera" accept="image/*" capture="environment" style="position:absolute;opacity:0;width:1px;height:1px;overflow:hidden;" onchange="handleOCR(this, '${module}')">
                         <img id="${module}OcrPreview" class="ocr-preview" alt="Preview">
                         <div id="${module}OcrStatus" class="ocr-status"><span data-ar="جاري المعالجة..." data-en="Processing...">جاري المعالجة...</span></div>
@@ -2835,6 +2900,169 @@
             return false;
         }
 
+        // Lazy-load PDF.js: prefers local bundled copy (./vendor/ or ./) then CDN (cached by sw.js)
+        let _pdfJsReady = false;
+
+        async function loadPdfJs() {
+            if (_pdfJsReady || (window.pdfjsLib && typeof window.pdfjsLib.getDocument === 'function')) {
+                _pdfJsReady = true;
+                return true;
+            }
+            const ok = await _loadLibraryWithFallback('pdfjs');
+            if (ok && window.pdfjsLib && typeof window.pdfjsLib.getDocument === 'function') {
+                _pdfJsReady = true;
+                const cfg = EXTERNAL_LIB_CONFIG && EXTERNAL_LIB_CONFIG.pdfjs;
+                if (window.pdfjsLib.GlobalWorkerOptions && !window.pdfjsLib.GlobalWorkerOptions.workerSrc && cfg && cfg.workerCdn) {
+                    window.pdfjsLib.GlobalWorkerOptions.workerSrc = cfg.workerCdn;
+                }
+                return true;
+            }
+            return false;
+        }
+
+        // Extract text lines from an uploaded PDF lab report safely (no JS eval, guaranteed pdfDoc.destroy cleanup)
+        async function extractLabTextFromPdf(file, options) {
+            const opts = options || {};
+            const maxPages = Math.max(1, Math.min(Number(opts.maxPages) || 15, 30));
+            const ok = await loadPdfJs();
+            if (!ok || !window.pdfjsLib || typeof window.pdfjsLib.getDocument !== 'function') {
+                throw new Error('PDF_ENGINE_UNAVAILABLE');
+            }
+
+            let rawBytes;
+            if (file instanceof Uint8Array) {
+                rawBytes = file;
+            } else if (file instanceof ArrayBuffer) {
+                rawBytes = new Uint8Array(file);
+            } else if (file && typeof file.arrayBuffer === 'function') {
+                rawBytes = new Uint8Array(await file.arrayBuffer());
+            } else {
+                throw new Error('INVALID_PDF_INPUT');
+            }
+
+            const pdfjsLib = window.pdfjsLib;
+            let loadingTask = null;
+            let pdfDoc = null;
+
+            try {
+                // Primary load with worker & isEvalSupported: false (hardens against untrusted PDF JS/fonts)
+                try {
+                    loadingTask = pdfjsLib.getDocument({
+                        data: rawBytes.slice(),
+                        isEvalSupported: false
+                    });
+                    pdfDoc = await loadingTask.promise;
+                } catch (primaryErr) {
+                    // Fallback load without worker while preserving isEvalSupported: false
+                    if (loadingTask && typeof loadingTask.destroy === 'function') {
+                        try { await loadingTask.destroy(); } catch (e) {}
+                    }
+                    loadingTask = pdfjsLib.getDocument({
+                        data: rawBytes.slice(),
+                        disableWorker: true,
+                        isEvalSupported: false
+                    });
+                    pdfDoc = await loadingTask.promise;
+                }
+
+                const pageCount = Math.min(pdfDoc.numPages || 0, maxPages);
+                const pageLines = [];
+
+                for (let pageNum = 1; pageNum <= pageCount; pageNum++) {
+                    const page = await pdfDoc.getPage(pageNum);
+                    try {
+                        const content = await page.getTextContent();
+                        const items = Array.isArray(content && content.items) ? content.items : [];
+                        const rows = [];
+                        for (const item of items) {
+                            const str = String(item && item.str != null ? item.str : '').trim();
+                            if (!str) continue;
+                            const tr = Array.isArray(item.transform) ? item.transform : [];
+                            const y = typeof tr[5] === 'number' ? tr[5] : 0;
+                            const x = typeof tr[4] === 'number' ? tr[4] : 0;
+                            let row = rows.find(r => Math.abs(r.y - y) <= 3.5);
+                            if (!row) {
+                                row = { y, parts: [] };
+                                rows.push(row);
+                            }
+                            row.parts.push({ x, str });
+                        }
+                        rows.sort((a, b) => b.y - a.y);
+                        rows.forEach(r => {
+                            r.parts.sort((a, b) => a.x - b.x);
+                            const lineText = r.parts.map(p => p.str).join(' ').replace(/\s+/g, ' ').trim();
+                            if (lineText) pageLines.push(lineText);
+                        });
+                    } finally {
+                        if (page && typeof page.cleanup === 'function') {
+                            try { page.cleanup(); } catch (e) {}
+                        }
+                    }
+                }
+
+                let text = pageLines.join('\n').trim();
+                let source = 'pdf_text';
+                let confidence = 95;
+                let ocrLines = pageLines.map(t => ({ text: t, confidence: 95 }));
+
+                // Scanned/image-only PDF fallback: render up to first 3 pages to canvas and run Tesseract if available
+                if (text.length < 15 && opts.allowOcrFallback !== false && pageCount > 0 && typeof document !== 'undefined') {
+                    const tessOk = await loadTesseract();
+                    if (tessOk && window.Tesseract) {
+                        const ocrChunks = [];
+                        const ocrLineObjs = [];
+                        const confSamples = [];
+                        const ocrPages = Math.min(pageCount, 3);
+                        for (let pNum = 1; pNum <= ocrPages; pNum++) {
+                            const page = await pdfDoc.getPage(pNum);
+                            try {
+                                const viewport = page.getViewport({ scale: 2.0 });
+                                const canvas = document.createElement('canvas');
+                                canvas.width = Math.ceil(viewport.width);
+                                canvas.height = Math.ceil(viewport.height);
+                                const ctx = canvas.getContext('2d');
+                                await page.render({ canvasContext: ctx, viewport }).promise;
+                                const res = await window.Tesseract.recognize(canvas, 'eng', { logger: () => {} });
+                                if (res && res.data && res.data.text) ocrChunks.push(res.data.text);
+                                if (res && res.data && typeof res.data.confidence === 'number') confSamples.push(res.data.confidence);
+                                if (res && res.data && Array.isArray(res.data.lines)) ocrLineObjs.push(...res.data.lines);
+                                canvas.width = 0;
+                                canvas.height = 0;
+                            } finally {
+                                if (page && typeof page.cleanup === 'function') {
+                                    try { page.cleanup(); } catch (e) {}
+                                }
+                            }
+                        }
+                        const ocrText = ocrChunks.join('\n').trim();
+                        if (ocrText) {
+                            text = ocrText;
+                            source = 'pdf_ocr';
+                            confidence = confSamples.length
+                                ? Math.round(confSamples.reduce((a, b) => a + b, 0) / confSamples.length)
+                                : null;
+                            ocrLines = ocrLineObjs;
+                        }
+                    }
+                }
+
+                return {
+                    text,
+                    lines: ocrLines,
+                    pageCount,
+                    confidence,
+                    source
+                };
+            } finally {
+                if (pdfDoc && typeof pdfDoc.destroy === 'function') {
+                    try { await pdfDoc.destroy(); } catch (e) {}
+                }
+                if (loadingTask && typeof loadingTask.destroy === 'function') {
+                    try { await loadingTask.destroy(); } catch (e) {}
+                }
+            }
+        }
+
         // ===== OCR TRIGGER — Mobile-safe file picker =====
         function triggerOCR(inputId) {
             const el = document.getElementById(inputId);
@@ -2849,7 +3077,7 @@
                 { keys: ['total cholesterol','cholesterol total','total chol','chol total'], field: 'lipidTotal' },
                 { keys: ['ldl','low density','ldl-c','ldl chol'], field: 'lipidLDL' },
                 { keys: ['hdl','high density','hdl-c','hdl chol'], field: 'lipidHDL' },
-                { keys: ['triglyceride','tg','triacylglycerol','trig'], field: 'lipidTG' },
+                { keys: ['triglycerides','triglyceride','tg','triacylglycerol','trig'], field: 'lipidTG' },
             ],
             diabetes: [
                 { keys: ['fasting glucose','fasting blood sugar','fbs','fasting sugar','glucose fasting'], field: 'diabetesFBS' },
@@ -3173,6 +3401,63 @@
             return fallbackCandidate;
         }
 
+        function clearOcrFieldReviewFlag(el) {
+            if (!el) return;
+            if (el.dataset) {
+                delete el.dataset.ocrReviewFlag;
+                delete el.dataset.ocrRejectedValue;
+                delete el.dataset.ocrExpectedRange;
+            }
+            el.removeAttribute('title');
+            if (el.style && el.style.border && el.style.border.includes('243, 156, 18')) {
+                el.style.border = '';
+            }
+            const parent = el.parentNode;
+            if (parent) {
+                const notice = parent.querySelector(`.ocr-manual-protected-notice[data-for="${el.id}"]`);
+                if (notice && notice.parentNode) notice.parentNode.removeChild(notice);
+            }
+        }
+
+        function renderOcrManualProtectedNotice(el, rawValue, range) {
+            if (!el || !el.parentNode) return;
+            const isEn = typeof currentLang !== 'undefined' && currentLang === 'en';
+            const rawStr = String(rawValue == null ? '' : rawValue);
+            const rangeStr = Array.isArray(range) ? `${range[0]}–${range[1]}` : '';
+            const plainNotice = isEn
+                ? `Manual entry preserved — OCR detected an out-of-range value (${rawStr}; expected ${rangeStr}). Please review this field.`
+                : `تم الحفاظ على قيمتك اليدوية — قرأ OCR قيمة خارج النطاق (${rawStr}؛ النطاق المقبول ${rangeStr}). يُرجى مراجعة الحقل.`;
+            const htmlNotice = isEn
+                ? `⚠️ Manual entry preserved — OCR detected an out-of-range value (<span dir="ltr" style="unicode-bidi:isolate;">${_escHtml(rawStr)}</span>; expected <span dir="ltr" style="unicode-bidi:isolate;">${_escHtml(rangeStr)}</span>). Please review this field.`
+                : `⚠️ تم الحفاظ على قيمتك اليدوية — قرأ OCR قيمة خارج النطاق (<span dir="ltr" style="unicode-bidi:isolate;">${_escHtml(rawStr)}</span>؛ النطاق المقبول <span dir="ltr" style="unicode-bidi:isolate;">${_escHtml(rangeStr)}</span>). يُرجى مراجعة الحقل.`;
+
+            el.dataset.ocrReviewFlag = 'true';
+            el.dataset.ocrRejectedValue = rawStr;
+            el.dataset.ocrExpectedRange = rangeStr;
+            el.title = plainNotice;
+            el.style.border = '2px solid #f39c12';
+
+            let noticeEl = el.parentNode.querySelector(`.ocr-manual-protected-notice[data-for="${el.id}"]`);
+            if (!noticeEl) {
+                noticeEl = document.createElement('div');
+                noticeEl.className = 'ocr-manual-protected-notice';
+                noticeEl.dataset.for = el.id;
+                noticeEl.setAttribute('role', 'status');
+                noticeEl.setAttribute('aria-live', 'polite');
+                el.parentNode.appendChild(noticeEl);
+            }
+            noticeEl.dir = isEn ? 'ltr' : 'rtl';
+            noticeEl.style.cssText = 'margin-top:6px;padding:7px 10px;background:#fffbeb;color:#92400e;border:1px solid #f59e0b;border-inline-start:3px solid #d97706;border-radius:6px;font-size:0.79rem;font-weight:600;line-height:1.5;text-align:start;';
+            noticeEl.innerHTML = htmlNotice;
+        }
+
+        function refreshOcrManualProtectedNotices() {
+            document.querySelectorAll('input[data-ocr-review-flag="true"]').forEach(el => {
+                const range = OCR_RANGES[el.id];
+                renderOcrManualProtectedNotice(el, el.dataset.ocrRejectedValue || '', range);
+            });
+        }
+
         function safeSetOcrValue(fieldId, rawValue, meta) {
             const num = typeof rawValue === 'number'
                 ? rawValue
@@ -3180,8 +3465,17 @@
             const range = OCR_RANGES[fieldId];
             if (!range || isNaN(num)) return false;
             const el = document.getElementById(fieldId);
+            const hasProtectedManualValue = Boolean(
+                el && el.dataset && el.dataset.userEdited === 'true' && String(el.value || '').trim() !== ''
+            );
             if (num < range[0] || num > range[1]) {
                 if (el) {
+                    if (hasProtectedManualValue) {
+                        // Protect manually edited non-empty field: preserve value & userEdited, flag for review & show bilingual notice
+                        renderOcrManualProtectedNotice(el, rawValue, range);
+                        return false;
+                    }
+                    clearOcrFieldReviewFlag(el);
                     const isEn = currentLang === 'en';
                     const origPlaceholder = el.dataset.origPlaceholder || el.getAttribute('placeholder') || '';
                     if (!el.dataset.origPlaceholder) el.dataset.origPlaceholder = origPlaceholder;
@@ -3203,6 +3497,7 @@
                 return false;
             }
             if (el) {
+                clearOcrFieldReviewFlag(el);
                 _isSettingOcrValue = true;
                 el.value = num;
                 _isSettingOcrValue = false;
@@ -3532,6 +3827,19 @@
                     : `تم الحفاظ على تعديلك اليدوي دون استبداله للحقول: ${names}.`);
             }
 
+            const protectedRejected = summary.protectedManualRejected || [];
+            if (protectedRejected.length > 0) {
+                hasWarn = true;
+                const names = protectedRejected.map(s => {
+                    const lblObj = OCR_FIELD_LABELS[s.fieldId];
+                    const name = lblObj ? (isEn ? lblObj.en : lblObj.ar) : s.fieldId;
+                    return `${name} (${s.value})`;
+                }).join(', ');
+                notes.push(isEn
+                    ? `Manual value preserved (OCR read out-of-range value — please review): ${names}.`
+                    : `تم الحفاظ على القيمة اليدوية (قرأ OCR قيمة خارج النطاق — يُرجى المراجعة): ${names}.`);
+            }
+
             if (notes.length === 0) {
                 banner.className = 'ocr-verify-banner';
                 banner.innerHTML = '';
@@ -3803,6 +4111,7 @@
         function updateFieldFromOcrSplitReview(fieldId, rawVal) {
             const el = document.getElementById(fieldId);
             if (!el) return;
+            clearOcrFieldReviewFlag(el);
             const trimmed = String(rawVal == null ? '' : rawVal).trim();
             el.value = trimmed;
             el.style.border = '';
@@ -3876,29 +4185,44 @@
             const previewId = module + 'OcrPreview';
             const statusId  = module + 'OcrStatus';
             const status    = document.getElementById(statusId);
+            const isPdf = file.type === 'application/pdf' || /\.pdf$/i.test(file.name || '');
 
-            // Show image preview
-            const reader = new FileReader();
-            reader.onload = e => {
-                const preview = document.getElementById(previewId);
-                preview.src = e.target.result;
-                preview.style.display = 'block';
-            };
-            reader.readAsDataURL(file);
+            // Show image preview for image uploads; hide image preview for PDF reports
+            const previewEl = document.getElementById(previewId);
+            if (isPdf) {
+                if (previewEl) {
+                    previewEl.style.display = 'none';
+                    previewEl.removeAttribute('src');
+                }
+            } else {
+                const reader = new FileReader();
+                reader.onload = e => {
+                    const preview = document.getElementById(previewId);
+                    if (preview) {
+                        preview.src = e.target.result;
+                        preview.style.display = 'block';
+                    }
+                };
+                reader.readAsDataURL(file);
+            }
 
             // Bilingual status messages
             const MSG = {
                 loading:  { ar: '⏳ جاري تحميل محرك قراءة النصوص...', en: '⏳ Loading OCR engine (first time only)...' },
+                loading_pdf: { ar: '⏳ جاري تحميل محرك قراءة ملفات PDF...', en: '⏳ Loading PDF reader engine...' },
                 reading:  { ar: '🔍 جاري قراءة الصورة...', en: '🔍 Reading image...' },
+                reading_pdf: { ar: '📄 جاري قراءة تقرير PDF...', en: '📄 Reading PDF lab report...' },
                 success:  { ar: '✅ تم استخراج القيم! راجع الحقول أدناه.', en: '✅ Values extracted! Please verify below.' },
-                rejected: { ar: (n) => `⚠️ تم الاستخراج — ${n} قيمة خارج النطاق (باللون الأحمر).`,
-                            en: (n) => `⚠️ Extracted — ${n} value(s) out of range (flagged red).` },
-                error:    { ar: '❌ تعذّر قراءة الصورة. أدخل القيم يدوياً.', en: '❌ Could not read image. Enter values manually.' },
-                novals:   { ar: '⚠️ لم يُعثر على قيم. حاول صورة أوضح أو أدخل يدوياً.', en: '⚠️ No values found. Try a clearer image or enter manually.' },
+                rejected: { ar: (n) => `⚠️ تم الاستخراج — ${n} قيمة خارج النطاق (تحتاج مراجعة).`,
+                            en: (n) => `⚠️ Extracted — ${n} value(s) out of range (flagged for review).` },
+                error:    { ar: '❌ تعذّر قراءة الملف. أدخل القيم يدوياً.', en: '❌ Could not read file. Enter values manually.' },
+                novals:   { ar: '⚠️ لم يُعثر على قيم. حاول صورة/ملف أوضح أو أدخل يدوياً.', en: '⚠️ No values found. Try a clearer image/PDF or enter manually.' },
                 noengine: { ar: '⚠️ محرك OCR غير متاح دون اتصال — يتطلب اتصالاً لأول مرة للتخزين المؤقت أو تضمين ./vendor/tesseract.min.js محلياً. يمكنك إدخال القيم يدوياً.',
                             en: '⚠️ OCR engine is unavailable offline — requires an initial online load to cache or local bundling at ./vendor/tesseract.min.js. You can still enter values manually.' },
-                offline_ocr_err: { ar: '⚠️ تعذّر تشغيل محرك OCR أثناء عدم الاتصال (بيانات اللغة غير مخزنة مؤقتاً). يمكنك إدخال القيم يدوياً.',
-                                   en: '⚠️ OCR could not complete while offline (language data not yet cached). Please enter values manually.' },
+                nopdfengine: { ar: '⚠️ محرك قراءة PDF غير متاح دون اتصال — يتطلب اتصالاً لأول مرة للتخزين المؤقت أو تضمين ./vendor/pdf.min.js محلياً. يمكنك إدخال القيم يدوياً.',
+                               en: '⚠️ PDF reader engine is unavailable offline — requires an initial online load to cache or local bundling at ./vendor/pdf.min.js. You can still enter values manually.' },
+                offline_ocr_err: { ar: '⚠️ تعذّر تشغيل محرك القراءة أثناء عدم الاتصال (بيانات المحرك غير مخزنة مؤقتاً). يمكنك إدخال القيم يدوياً.',
+                                   en: '⚠️ Extraction could not complete while offline (engine assets not yet cached). Please enter values manually.' },
             };
             const t = (key, arg) => {
                 const e = MSG[key]; if (!e) return key;
@@ -3906,39 +4230,63 @@
                 return typeof v === 'function' ? v(arg) : v;
             };
 
-            status.textContent = t('loading');
+            status.textContent = t(isPdf ? 'loading_pdf' : 'loading');
             status.classList.add('processing');
             status.style.display = 'block';
 
             try {
-                // Load Tesseract.js lazily (prefers ./vendor/, then SW-cached CDN)
-                const loaded = await loadTesseract();
-                if (!loaded) {
-                    const msg = t('noengine');
-                    status.textContent = msg;
-                    status.classList.remove('processing');
-                    if (typeof navigator !== 'undefined' && navigator.onLine === false) {
-                        showStatusToast(msg, 4500);
+                let rawText = '';
+                let overallConfidence = null;
+                let ocrLines = [];
+
+                if (isPdf) {
+                    const pdfLoaded = await loadPdfJs();
+                    if (!pdfLoaded) {
+                        const msg = t('nopdfengine');
+                        status.textContent = msg;
+                        status.classList.remove('processing');
+                        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                            showStatusToast(msg, 4500);
+                        }
+                        setTimeout(() => { status.style.display = 'none'; }, 9000);
+                        input.value = '';
+                        return;
                     }
-                    setTimeout(() => { status.style.display = 'none'; }, 9000);
-                    input.value = '';
-                    return;
+                    status.textContent = t('reading_pdf');
+                    const pdfRes = await extractLabTextFromPdf(file);
+                    rawText = (pdfRes && pdfRes.text) ? pdfRes.text : '';
+                    overallConfidence = (pdfRes && typeof pdfRes.confidence === 'number') ? pdfRes.confidence : null;
+                    ocrLines = (pdfRes && Array.isArray(pdfRes.lines)) ? pdfRes.lines : [];
+                } else {
+                    // Load Tesseract.js lazily (prefers ./vendor/, then SW-cached CDN)
+                    const loaded = await loadTesseract();
+                    if (!loaded) {
+                        const msg = t('noengine');
+                        status.textContent = msg;
+                        status.classList.remove('processing');
+                        if (typeof navigator !== 'undefined' && navigator.onLine === false) {
+                            showStatusToast(msg, 4500);
+                        }
+                        setTimeout(() => { status.style.display = 'none'; }, 9000);
+                        input.value = '';
+                        return;
+                    }
+
+                    status.textContent = t('reading');
+
+                    // Run Tesseract OCR — english lang is best for lab numbers
+                    const result = await Tesseract.recognize(file, 'eng', {
+                        logger: () => {} // suppress console noise
+                    });
+
+                    rawText = (result && result.data && result.data.text) ? result.data.text : '';
+                    overallConfidence = (result && result.data && typeof result.data.confidence === 'number')
+                        ? Math.round(result.data.confidence)
+                        : null;
+                    ocrLines = (result && result.data && Array.isArray(result.data.lines))
+                        ? result.data.lines
+                        : [];
                 }
-
-                status.textContent = t('reading');
-
-                // Run Tesseract OCR — english lang is best for lab numbers
-                const result = await Tesseract.recognize(file, 'eng', {
-                    logger: () => {} // suppress console noise
-                });
-
-                const rawText = (result && result.data && result.data.text) ? result.data.text : '';
-                const overallConfidence = (result && result.data && typeof result.data.confidence === 'number')
-                    ? Math.round(result.data.confidence)
-                    : null;
-                const ocrLines = (result && result.data && Array.isArray(result.data.lines))
-                    ? result.data.lines
-                    : [];
 
                 if (!rawText.trim()) {
                     status.textContent = t('novals');
@@ -3979,20 +4327,25 @@
                 const appliedFields = [];
                 const rejectedFields = [];
                 const skippedManual = [];
+                const protectedManualRejected = [];
 
                 for (const [fieldId, val] of Object.entries(values)) {
                     const el = document.getElementById(fieldId);
                     const fieldMeta = metaMap[fieldId] || null;
                     const range = OCR_RANGES[fieldId];
                     const inRange = range && !isNaN(val) && val >= range[0] && val <= range[1];
+                    const isProtectedManual = Boolean(el && el.dataset.userEdited === 'true' && el.value.trim() !== '');
 
-                    if (el && el.dataset.userEdited === 'true' && el.value.trim() !== '' && parseFloat(el.value) !== val && inRange) {
+                    if (isProtectedManual && parseFloat(el.value) !== val && inRange) {
                         skippedManual.push({ fieldId, value: val, meta: fieldMeta });
                         continue;
                     }
                     if (!safeSetOcrValue(fieldId, val, fieldMeta)) {
                         rejected++;
                         rejectedFields.push({ fieldId, value: val, meta: fieldMeta });
+                        if (isProtectedManual) {
+                            protectedManualRejected.push({ fieldId, value: val, meta: fieldMeta });
+                        }
                     } else {
                         appliedFields.push(fieldId);
                     }
@@ -4001,7 +4354,8 @@
                 ocrModuleSummary[module] = {
                     confidence: overallConfidence,
                     fields: appliedFields,
-                    skippedManual
+                    skippedManual,
+                    protectedManualRejected
                 };
                 ocrSplitReviewState.byModule[module] = {
                     module,
@@ -4021,7 +4375,7 @@
                 setTimeout(() => { status.style.display = 'none'; }, 5000);
 
             } catch (err) {
-                console.error('Tesseract OCR error:', err);
+                console.error(isPdf ? 'PDF extraction error:' : 'Tesseract OCR error:', err);
                 const isOffline = typeof navigator !== 'undefined' && navigator.onLine === false;
                 status.textContent = isOffline ? t('offline_ocr_err') : t('error');
                 status.classList.remove('processing');
@@ -4038,6 +4392,7 @@
                 if (!el) return;
                 el.addEventListener('input', function() {
                     if (_isSettingOcrValue) return;
+                    clearOcrFieldReviewFlag(el);
                     if (el.value.trim() !== '') {
                         el.dataset.userEdited = 'true';
                     } else {
@@ -4420,6 +4775,9 @@
             }
 
             let html = '';
+            if (isUsingDefaultGenderFallback(false)) {
+                html += buildDefaultGenderNoticeHtml(isEn, false);
+            }
             let recommendations = [];
             let anemiaType = '';
             let addedHypochromic = false;
@@ -4713,6 +5071,9 @@
             }
 
             let html = '';
+            if (isUsingDefaultGenderFallback(true)) {
+                html += buildDefaultGenderNoticeHtml(currentLang === 'en', false);
+            }
             let recommendations = [];
 
             const { min: normalMin, max: normalMax } = getGenderRanges(gender).uric;
@@ -6274,9 +6635,15 @@
                 dateStrAscii = localDateStamp;
             }
 
+            const hasSessionGender = typeof hasExplicitSessionGender === 'function'
+                ? hasExplicitSessionGender()
+                : (userGender === 'male' || userGender === 'female');
+            const usingDefaultGenderFallback = typeof isUsingDefaultGenderFallback === 'function'
+                ? isUsingDefaultGenderFallback(false)
+                : (!hasSessionGender && getEffectiveGender(false) === 'male');
             const genderLabel = isEn
-                ? (userGender === 'male' ? 'Male' : userGender === 'female' ? 'Female' : 'Not specified')
-                : (userGender === 'male' ? 'ذكر' : userGender === 'female' ? 'أنثى' : 'غير محدد');
+                ? (userGender === 'male' ? 'Male' : userGender === 'female' ? 'Female' : 'Not specified (Male default)')
+                : (userGender === 'male' ? 'ذكر' : userGender === 'female' ? 'أنثى' : 'غير محدد (الافتراضي: ذكر)');
 
             const titles = {
                 combined: {
@@ -6318,6 +6685,7 @@
                 dateStr,
                 dateStrAscii,
                 genderLabel,
+                usingDefaultGenderFallback,
                 patientName,
                 title: isEn ? t.en : t.ar,
                 subtitle: isEn ? t.subEn : t.subAr,
@@ -6610,6 +6978,10 @@
                 <div class="report-date" style="margin:0;text-align:inherit;">📅 ${_escHtml(meta.dateStr)}</div>
                 <div class="report-gender">👤 ${genderTitle} <strong>${_escHtml(meta.genderLabel)}</strong> &nbsp;|&nbsp; <span style="background:var(--primary-light);color:var(--primary-dark);padding:2px 8px;border-radius:999px;font-weight:700;font-size:0.76rem;">${_escHtml(meta.scopeBadge)}</span></div>
             </div>`;
+
+            if (meta.usingDefaultGenderFallback && meta.hasLabs) {
+                html += buildDefaultGenderNoticeHtml(isEn, false);
+            }
 
             // Executive Clinical Summary Card (top of report, right above detailed lab table)
             html += buildExecutiveClinicalSummaryHtml(reportData, medEval, isEn, false);
@@ -7059,6 +7431,13 @@
                 local: ['./vendor/html2canvas.min.js', './html2canvas.min.js'],
                 cdn: 'https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js',
                 isLoaded: () => typeof window.html2canvas === 'function'
+            },
+            pdfjs: {
+                local: ['./vendor/pdf.min.js', './pdf.min.js'],
+                cdn: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',
+                workerLocal: ['./vendor/pdf.worker.min.js', './pdf.worker.min.js'],
+                workerCdn: 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',
+                isLoaded: () => Boolean(window.pdfjsLib && typeof window.pdfjsLib.getDocument === 'function')
             }
         };
 
@@ -7188,6 +7567,9 @@
             const patientHeaderHtml = meta.patientName
                 ? `<div style="margin-bottom:14px;padding:10px 14px;background:${accentLight};border:1px solid ${accent}44;border-inline-start:4px solid ${accent};border-radius:8px;font-size:14px;color:#2c3e50;text-align:start;">👤 ${isEn ? 'Patient Name:' : 'اسم المريض:'} <strong>${_escHtml(meta.patientName)}</strong></div>`
                 : '';
+            const defaultGenderNoticeHtml = (meta.usingDefaultGenderFallback && meta.hasLabs)
+                ? buildDefaultGenderNoticeHtml(isEn, true)
+                : '';
 
             return `<div dir="${dir}" lang="${isEn ? 'en' : 'ar'}" style="font-family:'Segoe UI','Tahoma','Arial',sans-serif;color:#2c3e50;background:#ffffff;padding:0;margin:0;width:100%;box-sizing:border-box;">
                 <div style="background:linear-gradient(135deg,${accent} 0%,${accentDark} 100%);color:#ffffff;padding:20px 24px;border-radius:10px 10px 0 0;display:flex;justify-content:space-between;align-items:center;gap:16px;">
@@ -7204,6 +7586,7 @@
 
                 <div style="padding:20px 22px;border:1px solid #e5e7eb;border-top:none;border-radius:0 0 10px 10px;">
                     ${patientHeaderHtml}
+                    ${defaultGenderNoticeHtml}
                     ${executiveCardHtml}
                     ${labSectionHtml}
                     ${recSection}
@@ -7338,11 +7721,19 @@
             doc.text('Gender:', M, y);
             doc.setFont('helvetica', 'normal');
             doc.text(sanitizeAscii(meta.genderLabel), M + 18, y);
+            const scopeX = meta.usingDefaultGenderFallback ? M + 84 : M + 70;
             doc.setFont('helvetica', 'bold');
-            doc.text('Scope:', M + 70, y);
+            doc.text('Scope:', scopeX, y);
             doc.setFont('helvetica', 'normal');
-            doc.text(sanitizeAscii(meta.scopeBadge), M + 86, y);
-            y += 8;
+            doc.text(sanitizeAscii(meta.scopeBadge), scopeX + 16, y);
+            y += 7;
+            if (meta.usingDefaultGenderFallback && meta.hasLabs) {
+                doc.setTextColor(146, 64, 14); doc.setFontSize(8.5); doc.setFont('helvetica', 'italic');
+                doc.text('Note: Session gender not set - default Male reference ranges applied for sex-specific labs.', M, y);
+                y += 6;
+            } else {
+                y += 1;
+            }
 
             // Executive Clinical Summary block (top of report, right above Lab Results)
             const execSummary = buildExecutiveClinicalSummaryData(reportData, medEval);
@@ -7875,6 +8266,7 @@
 
             // ── Refresh dynamic bilingual UI pieces (badges, saved meds, reminders, active drug info, open report/cycle)
             if (typeof syncUricGenderUI === 'function') syncUricGenderUI();
+            if (typeof refreshOcrManualProtectedNotices === 'function') refreshOcrManualProtectedNotices();
             if (typeof refreshAllBadges === 'function') refreshAllBadges();
             if (typeof renderSavedMeds === 'function') renderSavedMeds();
             if (typeof renderReminders === 'function') renderReminders();
@@ -7946,6 +8338,7 @@
 
             // 2. Clear text/number/date inputs, textareas & file inputs — preserve select defaults
             document.querySelectorAll('input:not([type="file"]):not([type="checkbox"]):not([type="radio"]), textarea').forEach(el => {
+                clearOcrFieldReviewFlag(el);
                 el.value = '';
                 el.style.border = '';
                 el.style.background = '';
@@ -8221,7 +8614,7 @@
                 const r1Ok = r1Ids.includes('levo_iron') && !r1Ids.includes('timing_levo') && !r1Ids.includes('timing_iron');
 
                 const r2 = evaluateMedicationInteractions([allo, febuxo]);
-                const r2Ok = r2.findings.some(f => f.id === 'allo_febuxo' && f.type === 'warning');
+                const r2Ok = r2.findings.some(f => (f.id === 'dup_gout_ult' || f.id === 'allo_febuxo') && f.type === 'warning');
 
                 const r3 = evaluateMedicationInteractions([para]);
                 const r3Ok = r3.findings.length === 0;
@@ -8842,6 +9235,46 @@
                 return {
                     pass: allMeds.length >= 50 && missingKeys.length === 0 && newRulesOk && waTplOk && vendorAligned,
                     detail: `medCount=${allMeds.length}, missingKeys=[${missingKeys.join(',')}], newRules=${newRulesOk}, waTemplate=${waTplOk}, vendorCfg=${vendorAligned}`
+                };
+            });
+
+            runSafe('default_gender_notice_and_tg_keyword', 'contracts', () => {
+                const tgEntry = (OCR_KEYWORDS.lipid || []).find(item => item.field === 'lipidTG');
+                const tgPluralOk = Boolean(tgEntry && Array.isArray(tgEntry.keys) && tgEntry.keys.includes('triglycerides'));
+                const noticeAr = buildDefaultGenderNoticeHtml(false, false);
+                const noticeEnPrint = buildDefaultGenderNoticeHtml(true, true);
+                const noticeOk = noticeAr.includes('dir="rtl"')
+                    && noticeAr.includes('النطاقات المرجعية الافتراضية للذكور')
+                    && noticeEnPrint.includes('dir="ltr"')
+                    && noticeEnPrint.includes('default Male reference ranges')
+                    && !noticeEnPrint.includes('<button');
+                const domOk = Boolean(document.getElementById('anemiaGenderDefaultNote'))
+                    && typeof hasExplicitSessionGender === 'function'
+                    && typeof isUsingDefaultGenderFallback === 'function';
+                return {
+                    pass: tgPluralOk && noticeOk && domOk,
+                    detail: `tgPlural=${tgPluralOk}, noticeBilingual=${noticeOk}, domAndHelpers=${domOk}`
+                };
+            });
+
+            runSafe('pdf_security_and_manual_ocr_review_contract', 'contracts', () => {
+                const fnExists = typeof extractLabTextFromPdf === 'function' && typeof loadPdfJs === 'function';
+                const fnSrc = fnExists ? Function.prototype.toString.call(extractLabTextFromPdf) : '';
+                const evalMatches = (fnSrc.match(/isEvalSupported\s*:\s*false/g) || []).length;
+                const evalHardened = evalMatches >= 2;
+                const destroyInFinally = /finally\s*\{[\s\S]*pdfDoc\.destroy\(\)/.test(fnSrc);
+                const pdfCfgOk = Boolean(
+                    EXTERNAL_LIB_CONFIG && EXTERNAL_LIB_CONFIG.pdfjs &&
+                    Array.isArray(EXTERNAL_LIB_CONFIG.pdfjs.local) &&
+                    EXTERNAL_LIB_CONFIG.pdfjs.local.some(p => p.startsWith('./vendor/')) &&
+                    typeof EXTERNAL_LIB_CONFIG.pdfjs.isLoaded === 'function'
+                );
+                const reviewHelpersOk = typeof renderOcrManualProtectedNotice === 'function'
+                    && typeof clearOcrFieldReviewFlag === 'function'
+                    && typeof refreshOcrManualProtectedNotices === 'function';
+                return {
+                    pass: fnExists && evalHardened && destroyInFinally && pdfCfgOk && reviewHelpersOk,
+                    detail: `fn=${fnExists}, isEvalFalseCount=${evalMatches}, destroyFinally=${destroyInFinally}, pdfCfg=${pdfCfgOk}, reviewHelpers=${reviewHelpersOk}`
                 };
             });
 
