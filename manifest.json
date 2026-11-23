@@ -1,7 +1,7 @@
 {
     "id":  "./",
-    "name":  "PharmD Smart Hub",
-    "short_name":  "PharmD Hub",
+    "name":  "MR.Pharma",
+    "short_name":  "MR.Pharma",
     "description":  "Bilingual Clinical Pharmacy Assistant — منصة الصيدلي الذكية",
     "lang":  "ar",
     "dir":  "auto",

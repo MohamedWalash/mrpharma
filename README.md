@@ -1,4 +1,4 @@
-# PharmD Smart Hub — Local Offline Vendor Bundles (`./vendor/`)
+# MR.Pharma — Local Offline Vendor Bundles (`./vendor/`)
 
 These minified libraries are bundled locally under `./vendor/` alongside `index.html` and pre-cached by `sw.js` (`LOCAL_VENDOR_ASSETS`) so PDF export and OCR initialization do not wait on external CDNs when offline or on restricted networks.
 

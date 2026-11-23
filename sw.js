@@ -1,12 +1,12 @@
 /**
- * PharmD Smart Hub — Offline Service Worker (v17)
+ * MR.Pharma — Offline Service Worker (v18)
  * - Pre-caches core shell & bundled local ./vendor/ assets via resilient Promise.allSettled
  * - Navigation: Network-first with cached shell fallback (canonical ./index.html)
  * - Local ./vendor/ & same-origin static assets: Stale-While-Revalidate (instant offline load, no CDN wait)
  * - Approved CDN libraries (Tesseract.js, jsPDF, html2canvas, PDF.js): Cache-first fallback with runtime caching
  */
-const CORE_CACHE = 'pharmd-smart-hub-v17';
-const RUNTIME_CACHE = 'pharmd-smart-hub-runtime-v17';
+const CORE_CACHE = 'pharmd-smart-hub-v18';
+const RUNTIME_CACHE = 'pharmd-smart-hub-runtime-v18';
 const ALLOWED_CACHES = [CORE_CACHE, RUNTIME_CACHE];
 
 const CORE_ASSETS = [
@@ -59,7 +59,7 @@ async function isValidResponseForUrl(assetUrl, response) {
     if (!ct.includes('text/html')) return false;
     try {
       const text = await response.clone().text();
-      if (!text.includes('PharmD Smart Hub')) return false;
+      if (!text.includes('MR.Pharma') && !text.includes('PharmD Smart Hub')) return false;
     } catch (e) {
       return false;
     }
@@ -101,9 +101,9 @@ self.addEventListener('activate', (event) => {
 function buildOfflineFallbackResponse() {
   const html = `<!DOCTYPE html>
 <html lang="ar" dir="rtl">
-<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>PharmD Smart Hub — Offline</title></head>
+<head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>MR.Pharma — Offline</title></head>
 <body style="font-family:Segoe UI,Tahoma,Arial,sans-serif;text-align:center;padding:40px 20px;color:#2c3e50;">
-  <h2 style="color:#1a6fc4;">💊 PharmD Smart Hub</h2>
+  <h2 style="color:#1a6fc4;">💊 MR.Pharma</h2>
   <p>أنت حالياً دون اتصال بالإنترنت ولم يتم تخزين هذه الصفحة مؤقتاً بعد.</p>
   <p dir="ltr" style="color:#64748b;">You are currently offline and this page has not been cached yet.</p>
 </body>
@@ -204,12 +204,18 @@ self.addEventListener('message', (event) => {
     return;
   }
   if (event.data.type === 'SCHEDULE_REMINDER' && event.data.payload) {
-    const { id, title, body, delay } = event.data.payload;
+    const { id, lang, delay } = event.data.payload;
+    const isEn = lang === 'en';
+    // Privacy-safe notification text: omit patient names/identifiers on OS lock screens
+    const safeTitle = isEn ? 'MR.Pharma — Medication Reminder' : 'MR.Pharma — منبه الدواء';
+    const safeBody = isEn
+      ? 'It is time for your scheduled medication reminder. Open MR.Pharma to view details.'
+      : 'حان موعد تنبيه الدواء المجدول. افتح MR.Pharma لعرض التفاصيل.';
     const safeDelay = Math.max(0, Math.min(Number(delay) || 0, 2147483647));
     setTimeout(() => {
       if (self.registration && typeof self.registration.showNotification === 'function') {
-        self.registration.showNotification(title || 'PharmD Smart Hub', {
-          body: body || '',
+        self.registration.showNotification(safeTitle, {
+          body: safeBody,
           vibrate: [200, 100, 200],
           tag: `reminder-${id || Date.now()}`
         }).catch(() => {});
