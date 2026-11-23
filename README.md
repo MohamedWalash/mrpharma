@@ -1,11 +1,13 @@
 # PharmD Smart Hub — Local Offline Vendor Bundles (`./vendor/`)
 
-These minified libraries are bundled locally alongside `index.html.html` and pre-cached by `sw.js` (`LOCAL_VENDOR_ASSETS`) so PDF export and OCR initialization do not wait on external CDNs when offline or on restricted networks.
+These minified libraries are bundled locally under `./vendor/` alongside `index.html` and pre-cached by `sw.js` (`LOCAL_VENDOR_ASSETS`) so PDF export and OCR initialization do not wait on external CDNs when offline or on restricted networks.
 
 | File | Library & Version | Purpose |
 | --- | --- | --- |
-| `jspdf.umd.min.js` | jsPDF `2.5.1` | Arabic/English PDF generation & English vector PDF fallback |
-| `html2canvas.min.js` | html2canvas `1.4.1` | Native RTL/LTR Arabic & English HTML-to-PDF rendering |
-| `tesseract.min.js` | Tesseract.js `5.0.4` | Client-side lab report OCR loader |
+| `./vendor/jspdf.umd.min.js` | jsPDF `2.5.1` | Arabic/English PDF generation & English vector PDF fallback |
+| `./vendor/html2canvas.min.js` | html2canvas `1.4.1` | Native RTL/LTR Arabic & English HTML-to-PDF rendering |
+| `./vendor/tesseract.min.js` | Tesseract.js `5.0.4` | Client-side lab report OCR loader |
 
-`_loadLibraryWithFallback()` in `index.html.html` checks `./vendor/<file>` first, then `./<file>`, and falls back to SW-cached CDN only if a local bundle is missing.
+Optional PDF text extraction bundles (`./vendor/pdf.min.js` and `./vendor/pdf.worker.min.js`, PDF.js `3.11.174`) are also checked locally first when present and otherwise fall back to SW-cached CDN.
+
+`_loadLibraryWithFallback()` in `index.html` checks `./vendor/<file>` first, then `./<file>`, and falls back to SW-cached CDN only if a local bundle is missing.
